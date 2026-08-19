@@ -1,0 +1,27 @@
+{
+  "name": "@mzg/live-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"@mzg/live-core has no standalone runtime tests\"",
+    "lint": "echo \"@mzg/live-core lint skipped\""
+  },
+  "dependencies": {
+    "@mzg/live-contracts": "workspace:0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3"
+  }
+}

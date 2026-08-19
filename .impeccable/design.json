@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T05:00:00+08:00",
+  "title": "Design System: 猫掌柜 AI 实景直播经营系统",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "墨色文字", "canonical": "#17222d", "tonalRamp": ["#101820", "#17222d", "#32404b", "#52606a", "#75818a", "#a5aeb5", "#d2d7db", "#f1f3f4"] },
+      "workshop-navy": { "role": "primary", "displayName": "工坊墨蓝", "canonical": "#152838", "tonalRamp": ["#0c171f", "#152838", "#284252", "#416072", "#66818f", "#91a7b1", "#c1cdd2", "#edf1f3"] },
+      "inspection-blue": { "role": "primary", "displayName": "检验蓝", "canonical": "#176b87", "tonalRamp": ["#0b303d", "#0d5068", "#176b87", "#3889a3", "#67a6ba", "#9ac6d3", "#c8e1e8", "#eef7f9"] },
+      "safety-amber": { "role": "secondary", "displayName": "安全琥珀", "canonical": "#be7111", "tonalRamp": ["#412502", "#6d3d04", "#97570a", "#be7111", "#d99439", "#e9b871", "#f4d8aa", "#fff4e2"] },
+      "qualified-green": { "role": "secondary", "displayName": "合格绿", "canonical": "#2c7658", "tonalRamp": ["#102e21", "#1c4e39", "#2c7658", "#509479", "#78b39a", "#a3cfba", "#cce7da", "#eff8f3"] },
+      "stop-red": { "role": "secondary", "displayName": "停机红", "canonical": "#a63e34", "tonalRamp": ["#3d1511", "#69251f", "#8d332b", "#a63e34", "#c56359", "#dc9189", "#edbeb9", "#faeeec"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "工作页标题", "purpose": "当前任务页面和班次标题。" },
+      "body": { "displayName": "中文工作正文", "purpose": "说明、知识答案与恢复步骤。" },
+      "label": { "displayName": "状态标签", "purpose": "证据、风险和辅助数据。" }
+    },
+    "shadows": [
+      { "name": "shift-board", "value": "0 14px 34px rgba(23, 34, 45, 0.11)", "purpose": "首页唯一主值班板。" },
+      { "name": "broadcast-caption", "value": "0 3cqw 7cqw rgba(0,0,0,0.25)", "purpose": "确保直播字幕在实景上可读。" }
+    ],
+    "motion": [
+      { "name": "live-pulse", "value": "1.6s ease-out", "purpose": "只用于真实直播状态点；减少动态效果时停用。" }
+    ],
+    "breakpoints": [
+      { "name": "compact-sidebar", "value": "1180px" },
+      { "name": "single-column", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "当前低风险主动作。",
+      "html": "<button class=\"ds-btn-primary\">建立今晚场次</button>",
+      "css": ".ds-btn-primary{height:42px;padding:0 15px;border:0;border-radius:12px;background:#176b87;color:#fff;font:700 13px 'Microsoft YaHei UI',sans-serif}.ds-btn-primary:hover{background:#0d5068}.ds-btn-primary:focus-visible{outline:3px solid rgba(23,107,135,.28);outline-offset:2px}"
+    },
+    {
+      "name": "State Badge",
+      "kind": "chip",
+      "description": "文字、图标和颜色并用的试播阻断状态。",
+      "html": "<span class=\"ds-state-blocked\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6m0-6 6 6\"/></svg>试播未解锁</span>",
+      "css": ".ds-state-blocked{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 11px;border-radius:999px;background:#f8e6e2;color:#a63e34;font:700 12px 'Microsoft YaHei UI',sans-serif}"
+    },
+    {
+      "name": "Evidence Field",
+      "kind": "input",
+      "description": "证据标题、位置和校验值组成的输入。",
+      "html": "<label class=\"ds-field\"><span>官方书面客服证据</span><input placeholder=\"证据标题；没有就保持空白\"></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:6px;font:700 10px 'Microsoft YaHei UI',sans-serif;color:#4f5d66}.ds-field input{height:40px;padding:0 10px;border:1px solid #c8d0d6;border-radius:9px;background:#fff;font:400 13px 'Microsoft YaHei UI',sans-serif}.ds-field input:focus-visible{outline:3px solid rgba(23,107,135,.28);outline-offset:2px}"
+    },
+    {
+      "name": "Shift Navigation",
+      "kind": "nav",
+      "description": "工坊墨蓝侧栏与洗护纸白当前项。",
+      "html": "<nav class=\"ds-nav\"><button class=\"active\">今晚值班</button><button>安全问答</button></nav>",
+      "css": ".ds-nav{display:grid;gap:5px;padding:10px;background:#152838}.ds-nav button{height:44px;padding:0 12px;border:0;border-radius:12px;background:transparent;color:#bcc8d0;text-align:left;font:400 13px 'Microsoft YaHei UI',sans-serif}.ds-nav button.active{background:#f6f4ed;color:#152838;font-weight:700}.ds-nav button:focus-visible{outline:3px solid rgba(255,255,255,.38);outline-offset:2px}"
+    },
+    {
+      "name": "Gate Row",
+      "kind": "custom",
+      "description": "一条门禁同时呈现状态、原因和恢复方向。",
+      "html": "<div class=\"ds-gate\"><strong>官方书面客服证据</strong><p>当前只有口头答复，正式试播不得解锁</p><span>阻断</span></div>",
+      "css": ".ds-gate{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:15px;border:1px solid #c8d0d6;border-radius:13px;background:#fff;font-family:'Microsoft YaHei UI',sans-serif}.ds-gate strong{font-size:12px}.ds-gate p{grid-column:1;margin:0;color:#5d6a74;font-size:10px}.ds-gate span{grid-row:1/3;grid-column:2;align-self:center;padding:4px 7px;border-radius:6px;background:#f8e6e2;color:#a63e34;font-size:9px;font-weight:700}"
+    }
+  ],
+  "narrative": {
+    "northStar": "洗护工坊值班板",
+    "overview": "界面像真实洗护车间里一块正在工作的值班板：员工先看到今晚状态、设备和风险，再进入主持、问答与经营记录。品牌性格来自精确工单、检验状态和黑猫掌柜小标识。",
+    "keyCharacteristics": ["实景画面始终比数据和装饰占据更大空间。", "状态同时使用图标、文字与颜色。", "未知状态必须直接写出。", "黑猫标识不遮挡真实操作。"],
+    "rules": [
+      { "name": "Evidence Color", "body": "绿、黄、红只表达已经由系统确定的状态，不作为装饰。", "section": "colors" },
+      { "name": "One Read", "body": "状态、主操作和停止原因必须一眼读完。", "section": "typography" },
+      { "name": "Flat State", "body": "状态靠图标、文字和背景色表达，不能通过更高阴影假装更重要。", "section": "elevation" }
+    ],
+    "dos": ["把当前风险、下一动作和恢复办法放在同一视野。", "对未知价格、成本、利润和权限写数据未取得或待核验。", "保持直播画面中央给真实操作。"],
+    "donts": ["不使用渐变文字、霓虹、玻璃拟态或数字人科技感。", "不把内容拆成大量同尺寸图标卡片。", "不用颜色替代状态文字。"]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "mzg-live-commerce-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=24.16.0 <25",
+    "pnpm": "11.5.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mzg/live-contracts build && pnpm --filter @mzg/live-core build && cross-env-shell MZG_PROJECT_ROOT=$INIT_CWD concurrently -k -n API,RENDER,MAIN,DESKTOP -c blue,green,yellow,magenta \"pnpm --filter @mzg/live-api dev\" \"pnpm --filter @mzg/live-desktop dev:web\" \"pnpm --filter @mzg/live-desktop dev:main\" \"wait-on apps/desktop/dist-main/main.js http-get://127.0.0.1:3188/api/health http://127.0.0.1:5173 && cross-env MZG_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron apps/desktop/dist-main/main.js\"",
+    "build": "pnpm --filter @mzg/live-contracts build && pnpm --filter @mzg/live-core build && pnpm --filter @mzg/live-api build && pnpm --filter @mzg/live-desktop build",
+    "start": "cross-env-shell MZG_PROJECT_ROOT=$INIT_CWD concurrently -k -n API,DESKTOP -c blue,magenta \"pnpm --filter @mzg/live-api start\" \"wait-on http-get://127.0.0.1:3188/api/health && electron apps/desktop/dist-main/main.js\"",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "stress:test": "pnpm build && node scripts/stress-test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.2",
+    "@types/node": "24.13.3",
+    "concurrently": "10.0.4",
+    "cross-env": "10.1.0",
+    "electron": "43.4.0",
+    "eslint": "9.39.2",
+    "globals": "16.4.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.1",
+    "wait-on": "9.1.0"
+  }
+}

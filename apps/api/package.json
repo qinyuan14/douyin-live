@@ -1,0 +1,33 @@
+{
+  "name": "@mzg/live-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "build": "pnpm --filter @mzg/live-core build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @mzg/live-core build && tsc --noEmit -p tsconfig.json",
+    "test": "pnpm build && node --test dist/*.test.js",
+    "lint": "eslint src --max-warnings=0"
+  },
+  "dependencies": {
+    "@mzg/live-contracts": "workspace:0.1.0",
+    "@mzg/live-core": "workspace:0.1.0",
+    "@nestjs/common": "11.1.29",
+    "@nestjs/core": "11.1.29",
+    "@nestjs/platform-express": "11.1.29",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "11.0.24",
+    "@types/node": "24.13.3",
+    "eslint": "9.39.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.1"
+  }
+}
+

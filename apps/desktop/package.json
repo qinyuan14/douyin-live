@@ -1,0 +1,31 @@
+{
+  "name": "@mzg/live-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:web": "vite --host 127.0.0.1 --port 5173",
+    "dev:main": "tsc -p tsconfig.main.json --watch --preserveWatchOutput",
+    "build": "pnpm --filter @mzg/live-contracts build && vite build && tsc -p tsconfig.main.json",
+    "typecheck": "pnpm --filter @mzg/live-contracts build && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.main.json",
+    "test": "node --test src/lib/*.test.ts",
+    "lint": "eslint src --max-warnings=0"
+  },
+  "dependencies": {
+    "@mzg/live-contracts": "workspace:0.1.0",
+    "lucide-react": "0.468.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.5",
+    "electron": "43.4.0",
+    "eslint": "9.39.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.1",
+    "vite": "8.2.1"
+  }
+}
