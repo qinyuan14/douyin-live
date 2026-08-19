@@ -192,3 +192,41 @@ export const ResponseEvaluationRequestSchema = z.object({
   proposedAnswer: z.string(),
 });
 export type ResponseEvaluationRequest = z.infer<typeof ResponseEvaluationRequestSchema>;
+
+export const BackupSummarySchema = z.object({
+  name: z.string(),
+  dir: z.string(),
+  createdAt: z.string(),
+  label: z.string(),
+  bytes: z.number(),
+  fileCount: z.number(),
+  counts: z.record(z.string(), z.number()),
+  externalEvidenceIds: z.array(z.string()),
+});
+export type BackupSummary = z.infer<typeof BackupSummarySchema>;
+
+export const BackupIntegritySchema = z.object({
+  ok: z.boolean(),
+  name: z.string(),
+  dir: z.string(),
+  manifest: z.unknown().nullable(),
+  missing: z.array(z.string()),
+  mismatched: z.array(z.string()),
+  unlisted: z.array(z.string()),
+  manifestDigestOk: z.boolean(),
+  problems: z.array(z.string()),
+});
+export type BackupIntegrity = z.infer<typeof BackupIntegritySchema>;
+
+export const RestoreResultSchema = z.object({
+  restoredFrom: z.string(),
+  dataDir: z.string(),
+  safetyBackupDir: z.string(),
+  restoredFiles: z.number(),
+  removedStaleEvidenceFiles: z.number(),
+  rewrittenPaths: z.number(),
+  verifiedEvidenceFiles: z.number(),
+  externalEvidenceIds: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+export type RestoreResult = z.infer<typeof RestoreResultSchema>;

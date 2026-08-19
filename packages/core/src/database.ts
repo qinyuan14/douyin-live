@@ -128,6 +128,33 @@ export class LiveDatabase {
     this.persist();
   }
 
+  /**
+   * 把内存状态落盘。
+   * 备份前必须调用：否则备份到的是磁盘上的旧快照，与运行中的真实状态不一致。
+   */
+  async flush(): Promise<void> {
+    this.persist();
+  }
+
+  /**
+   * 从磁盘重新载入状态。
+   * 恢复数据后必须调用：否则下一次 persist() 会用内存里的旧状态把刚恢复的文件覆盖回去。
+   */
+  async reload(): Promise<void> {
+    await this.load();
+  }
+
+  /** 当前是否存在正在播报或中途暂停的场次（此时禁止恢复数据）。 */
+  hasBroadcastingSession(): boolean {
+    return this.state.sessions.some((session) => session.state === 'LIVE' || session.state === 'PAUSED');
+  }
+
+  /** 记录备份/恢复这类数据维护动作，保证可追溯。 */
+  async recordDataMaintenance(action: string, meta: Record<string, unknown>): Promise<void> {
+    this.audit(action, 'LocalBackup', null, meta);
+    this.persist();
+  }
+
   getStoreConfig(): Promise<StoreConfig> {
     return Promise.resolve({ ...this.state.config });
   }

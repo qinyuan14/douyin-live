@@ -15,10 +15,17 @@ import {
   assertTransition,
   buildPreflightChecks,
   calculateCohortReport,
+  createLocalBackup,
+  defaultBackupsRoot,
   evidenceMatchesStoredFile,
   evaluateResponse,
+  inspectLocalBackup,
+  isSafeBackupName,
+  listLocalBackups,
   redactPersonalData,
+  restoreLocalBackup,
 } from '@mzg/live-core';
+import type { BackupIntegrity, BackupSummary, RestoreResult } from '@mzg/live-contracts';
 import { buildRunSheet } from './run-sheet.js';
 
 const APPROVED_KNOWLEDGE_EVIDENCE_ID = '00000000-0000-4000-8000-000000000014';
@@ -470,6 +477,65 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
 
   audit(limit: number) {
     return this.database.listAudit(limit);
+  }
+
+  async createBackup(label?: string): Promise<BackupSummary> {
+    const summary = createLocalBackup({
+      dataDir: this.database.dataDir,
+      label: label || '值班台手动备份',
+    });
+    await this.database.recordDataMaintenance('BACKUP_CREATED', {
+      backupDir: summary.dir,
+      label: summary.label,
+      fileCount: summary.fileCount,
+      bytes: summary.bytes,
+      createdAt: summary.createdAt,
+      externalEvidenceIds: summary.externalEvidenceIds,
+    });
+    return summary;
+  }
+
+  listBackups(): BackupSummary[] {
+    return listLocalBackups(defaultBackupsRoot(this.database.dataDir));
+  }
+
+  verifyBackup(name: string): BackupIntegrity {
+    if (!isSafeBackupName(name)) throw new Error('备份名称不合法');
+    const dir = resolve(defaultBackupsRoot(this.database.dataDir), name);
+    const integrity = inspectLocalBackup(dir);
+    if (!integrity.ok && integrity.problems.length > 0) {
+      throw new Error(integrity.problems[0]);
+    }
+    return integrity;
+  }
+
+  async restoreBackup(name: string): Promise<RestoreResult> {
+    const dir = resolve(defaultBackupsRoot(this.database.dataDir), name);
+    if (!isSafeBackupName(name)) throw new Error('备份名称不合法');
+    if (this.database.hasBroadcastingSession()) {
+      throw new Error('当前有直播中或暂停的场次，禁止恢复数据；请先安全结束场次');
+    }
+    // 先把运行中的内存状态落盘，确保恢复前的自动安全备份反映的是真实当前状态。
+    await this.database.flush();
+    const result = restoreLocalBackup({
+      backupDir: dir,
+      dataDir: this.database.dataDir,
+    });
+    // 恢复后重载内存，避免下一次 persist() 用旧状态把恢复结果覆盖回去。
+    await this.database.reload();
+    // 恢复可能带回旧版白名单知识，重新执行白名单种子，让标准话术与本程序指纹保持一致。
+    await this.seedKnowledge().catch((error: unknown) => {
+      result.warnings.push(`白名单知识重新断言失败（${error instanceof Error ? error.message : '未知错误'}），AI 播报将保持阻断，需人工复核`);
+    });
+    await this.database.recordDataMaintenance('BACKUP_RESTORED', {
+      restoredFrom: result.restoredFrom,
+      safetyBackupDir: result.safetyBackupDir,
+      restoredFiles: result.restoredFiles,
+      rewrittenPaths: result.rewrittenPaths,
+      verifiedEvidenceFiles: result.verifiedEvidenceFiles,
+      warnings: result.warnings,
+    });
+    return result;
   }
 
   private async requireSession(id: string): Promise<LiveSession> {

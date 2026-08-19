@@ -195,4 +195,39 @@ export class AppController {
   audit(@Query('limit') limit?: string) {
     return this.live.audit(Number(limit ?? 100));
   }
+
+  @Get('/backups')
+  listBackups() {
+    return this.live.listBackups();
+  }
+
+  @Post('/backups')
+  async createBackup(@Body() body: unknown) {
+    try {
+      const label = body && typeof body === 'object' && typeof (body as Record<string, unknown>).label === 'string'
+        ? String((body as Record<string, unknown>).label).slice(0, 80)
+        : undefined;
+      return await this.live.createBackup(label);
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
+  @Get('/backups/:name/verify')
+  async verifyBackup(@Param('name') name: string) {
+    try {
+      return await this.live.verifyBackup(name);
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
+  @Post('/backups/:name/restore')
+  async restoreBackup(@Param('name') name: string) {
+    try {
+      return await this.live.restoreBackup(name);
+    } catch (error) {
+      badRequest(error);
+    }
+  }
 }

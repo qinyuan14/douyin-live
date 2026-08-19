@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  Archive,
   BookOpenCheck,
   Bot,
   Camera,
@@ -8,6 +9,8 @@ import {
   ChevronRight,
   CircleAlert,
   ClipboardCheck,
+  Database,
+  DatabaseBackup,
   FileClock,
   Gauge,
   Hand,
@@ -23,6 +26,7 @@ import {
   Radio,
   ReceiptText,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   ShoppingBag,
@@ -32,11 +36,14 @@ import {
   WalletCards,
 } from 'lucide-react';
 import type {
+  BackupIntegrity,
+  BackupSummary,
   KnowledgeItem,
   LiveSession,
   OfferSnapshot,
   OrderOutcome,
   ResponseEvaluationResult,
+  RestoreResult,
   RunSheetSegment,
 } from '@mzg/live-contracts';
 import { api, type AuditEntry, type BootstrapData, type StoredEvidenceFile } from '../api.js';
@@ -45,7 +52,7 @@ import { CatMark } from '../components/Icons.js';
 import { CheckIcon, StateBadge } from '../components/Status.js';
 import { selectCurrentOffer } from '../lib/offers.js';
 
-type Page = 'overview' | 'director' | 'qa' | 'orders' | 'preflight' | 'audit';
+type Page = 'overview' | 'director' | 'qa' | 'orders' | 'preflight' | 'audit' | 'backups';
 type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null;
 
 const NAV_ITEMS: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }> = [
@@ -55,6 +62,7 @@ const NAV_ITEMS: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }
   { id: 'orders', label: '经营闭环', icon: ReceiptText },
   { id: 'preflight', label: '试播门禁', icon: ClipboardCheck },
   { id: 'audit', label: '审计记录', icon: History },
+  { id: 'backups', label: '数据备份', icon: DatabaseBackup },
 ];
 
 function formatMoney(value: number | null): string {
@@ -412,6 +420,7 @@ export function ControlApp() {
             />
           )}
           {page === 'audit' && <Audit entries={audit} />}
+          {page === 'backups' && <Backups sessionState={state} onNotice={setNotice} />}
         </section>
       </div>
     </div>
@@ -426,6 +435,7 @@ function pageSubtitle(page: Page): string {
     orders: '把付款追踪到取鞋、完成、成本和30天复购。',
     preflight: '正式试播默认锁住；缺一项证据就不解锁。',
     audit: '所有配置、回答、状态和经营记录均可追溯。',
+    backups: '经营数据与已保全证据的本地副本；恢复前先校验、自动留底。',
   };
   return subtitles[page];
 }
@@ -924,6 +934,159 @@ function Audit({ entries }: { entries: AuditEntry[] }) {
       </div>
     </section>
   );
+}
+
+function Backups({ sessionState, onNotice }: {
+  sessionState: string;
+  onNotice: (notice: Notice) => void;
+}) {
+  const [backups, setBackups] = useState<BackupSummary[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [verification, setVerification] = useState<BackupIntegrity | null>(null);
+
+  const refresh = useCallback(async (quiet = false) => {
+    if (!quiet) setLoaded(false);
+    try {
+      setBackups(await api.listBackups());
+    } catch (error) {
+      onNotice({ tone: 'error', message: error instanceof Error ? error.message : '备份列表读取失败' });
+    } finally {
+      if (!quiet) setLoaded(true);
+    }
+  }, [onNotice]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function createNow() {
+    setCreating(true);
+    try {
+      const created = await api.createBackup();
+      await refresh(true);
+      onNotice({ tone: 'success', message: `备份已生成：${created.name}（${created.fileCount} 个文件）。请将 ${created.dir} 复制到另一块磁盘保存。` });
+    } catch (error) {
+      onNotice({ tone: 'error', message: error instanceof Error ? error.message : '备份失败' });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function verify(name: string) {
+    setBusy(name);
+    setVerification(null);
+    try {
+      const result = await api.verifyBackup(name);
+      setVerification(result);
+      onNotice(result.ok
+        ? { tone: 'success', message: `备份 ${name} 完整性校验通过：清单、文件与摘要一致。` }
+        : { tone: 'error', message: `备份 ${name} 校验未通过：${result.problems.join('；')}` });
+    } catch (error) {
+      onNotice({ tone: 'error', message: error instanceof Error ? error.message : '校验失败' });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function restore(name: string) {
+    const confirmed = window.confirm(
+      `⚠️ 恢复操作会覆盖当前全部经营数据与证据，且不可撤销（系统会在恢复前自动生成一份安全备份用于回退）。\n\n确认从「${name}」恢复吗？`,
+    );
+    if (!confirmed) return;
+    setBusy(name);
+    try {
+      const result = await api.restoreBackup(name);
+      await refresh(true);
+      onNotice({
+        tone: 'success',
+        message: `已从 ${result.restoredFrom} 恢复 ${result.restoredFiles} 个文件，证据校验 ${result.verifiedEvidenceFiles} 份通过；恢复前安全备份：${result.safetyBackupDir}。${result.warnings.join('；')}`,
+      });
+    } catch (error) {
+      onNotice({ tone: 'error', message: error instanceof Error ? error.message : '恢复失败' });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const streaming = sessionState === 'LIVE' || sessionState === 'PAUSED';
+
+  return (
+    <section className="backup-panel">
+      <div className="panel-heading">
+        <DatabaseBackup aria-hidden="true" />
+        <div>
+          <h2>本地数据备份与恢复</h2>
+          <p>备份 8 个经营 JSON 与 evidence/ 证据目录，带 SHA256 清单；恢复前自动校验、失败整体拒绝、恢复前自动留底。恢复只接管业务数据，不碰本机身份令牌。</p>
+        </div>
+      </div>
+
+      <div className="backup-actions">
+        <button className="primary-action" type="button" onClick={() => void createNow()} disabled={creating}>
+          {creating ? <LoaderCircle className="spin" aria-hidden="true" /> : <Database aria-hidden="true" />}
+          {creating ? '正在生成备份…' : '立即生成备份'}
+        </button>
+        <button className="secondary-action" type="button" onClick={() => void refresh()} disabled={busy !== null}>
+          <RefreshCw aria-hidden="true" />刷新列表
+        </button>
+        <span className="action-note">备份建议每次结束后复制到另一块磁盘或压缩归档，避免单盘故障同归于尽。</span>
+      </div>
+
+      {streaming && (
+        <div className="backup-live-warning">
+          <ShieldAlert aria-hidden="true" />
+          <span>当前场次为 {shortState(sessionState)}，直播进行或中途暂停时禁止恢复数据；生成备份不受影响。</span>
+        </div>
+      )}
+
+      <div className="backup-list">
+        {!loaded ? (
+          <div className="empty-row"><LoaderCircle className="spin" aria-hidden="true" />正在读取备份列表…</div>
+        ) : backups.length === 0 ? (
+          <div className="empty-row"><Archive aria-hidden="true" />还没有任何备份。建议在首次建立场次前先生成一份。</div>
+        ) : backups.map((item) => (
+          <article className="backup-row" key={item.name}>
+            <div className="backup-meta">
+              <DatabaseBackup aria-hidden="true" />
+              <div>
+                <strong>{item.name}</strong>
+                <span>{formatTime(item.createdAt)} · {item.label} · {formatBytes(item.bytes)} · {item.fileCount} 个文件</span>
+                <span className="backup-counts">商品 {item.counts.offers ?? 0} · 场次 {item.counts.sessions ?? 0} · 订单 {item.counts.orders ?? 0} · 知识 {item.counts.knowledge ?? 0} · 证据文件 {item.counts.evidenceFiles ?? 0}</span>
+                {item.externalEvidenceIds.length > 0 && (
+                  <span className="backup-external">⚠ {item.externalEvidenceIds.length} 条证据指向数据目录之外，不在本备份内</span>
+                )}
+              </div>
+            </div>
+            <div className="backup-row-actions">
+              <button className="secondary-action" type="button" disabled={busy !== null} onClick={() => void verify(item.name)}>
+                {busy === item.name ? <LoaderCircle className="spin" aria-hidden="true" /> : <FileClock aria-hidden="true" />}校验
+              </button>
+              <button className="danger-action" type="button" disabled={busy !== null || streaming} title={streaming ? '直播进行或暂停时禁止恢复' : '恢复将覆盖当前数据'} onClick={() => void restore(item.name)}>
+                <RotateCcw aria-hidden="true" />恢复
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {verification && !verification.ok && verification.problems.length > 0 && (
+        <div className="backup-verify-detail">
+          <CircleAlert aria-hidden="true" />
+          <div>
+            <strong>校验未通过，该备份不会被恢复</strong>
+            <ul>{verification.problems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 function auditSummary(entry: AuditEntry): string {

@@ -277,6 +277,28 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .audit-time { color: #66747d; font-variant-numeric: tabular-nums; }
 .audit-action { padding: 4px 6px; border-radius: 5px; background: #e9eef0; font-size: 9px; font-weight: 700; width: fit-content; }
 
+/* 数据备份页 */
+.backup-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.backup-actions .primary-action, .backup-actions .secondary-action { min-height: 40px; }
+.backup-actions .action-note { flex: 1 1 220px; color: var(--muted); font-size: 10px; }
+.backup-live-warning { display: flex; align-items: center; gap: 9px; padding: 10px 13px; border: 1px solid #e3b0a7; border-radius: 11px; background: var(--red-soft); color: var(--red); font-size: 12px; margin-bottom: 14px; }
+.backup-live-warning svg { width: 18px; flex: 0 0 auto; }
+.backup-list { display: grid; gap: 10px; }
+.backup-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 15px; border: 1px solid var(--steel); border-radius: 12px; background: white; }
+.backup-meta { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.backup-meta > svg { width: 21px; color: var(--blue); flex: 0 0 auto; margin-top: 1px; }
+.backup-meta div { display: grid; gap: 3px; min-width: 0; }
+.backup-meta strong { font-size: 13px; }
+.backup-meta span { color: var(--muted); font-size: 10px; }
+.backup-counts { color: #46535d !important; }
+.backup-external { color: var(--amber) !important; font-weight: 700; }
+.backup-row-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.backup-row-actions .secondary-action, .backup-row-actions .danger-action { min-height: 36px; }
+.backup-row-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.backup-verify-detail { display: flex; gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid #e3b0a7; border-radius: 11px; background: var(--red-soft); color: var(--red); font-size: 11px; }
+.backup-verify-detail svg { width: 18px; flex: 0 0 auto; }
+.backup-verify-detail ul { margin: 6px 0 0; padding-left: 18px; }
+
 .loading-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: var(--navy); color: white; }
 .loading-screen .cat-mark { margin-bottom: 12px; }
 .loading-screen strong { font-size: 15px; }

@@ -1,4 +1,6 @@
 import type {
+  BackupIntegrity,
+  BackupSummary,
   KnowledgeItem,
   LiveSession,
   LiveSessionState,
@@ -6,6 +8,7 @@ import type {
   OrderOutcome,
   PreflightCheck,
   ResponseEvaluationResult,
+  RestoreResult,
   RunSheetSegment,
   StoreConfig,
 } from '@mzg/live-contracts';
@@ -134,4 +137,8 @@ export const api = {
   saveOrder: (input: OrderOutcome) => request<OrderOutcome>('/orders', { method: 'POST', body: JSON.stringify(input) }),
   audit: () => request<AuditEntry[]>('/audit?limit=200'),
   exportCohort: () => request<Record<string, unknown>>('/exports/cohort', { method: 'POST' }),
+  listBackups: () => request<BackupSummary[]>('/backups'),
+  createBackup: (label?: string) => request<BackupSummary>('/backups', { method: 'POST', body: JSON.stringify({ label }) }),
+  verifyBackup: (name: string) => request<BackupIntegrity>(`/backups/${encodeURIComponent(name)}/verify`),
+  restoreBackup: (name: string) => request<RestoreResult>(`/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' }),
 };
