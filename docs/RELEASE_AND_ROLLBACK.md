@@ -75,7 +75,7 @@ export ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-
 | 项 | 路径 |
 |---|---|
 | 安装目录（NSIS） | 用户可选，默认 `%LOCALAPPDATA%\Programs\实景直播经营系统` |
-| **业务数据（关键）** | `%APPDATA%\实景直播经营系统\live-system-data\.data\live-system\`（8 JSON + evidence 证据文件 + runtime-token） |
+| **业务数据（关键）** | `%APPDATA%\实景直播经营系统\live-system-data\.data\live-system\`（8 JSON + evidence 证据文件 + runtime-token + activation.json 激活状态） |
 | 备份包 | `%APPDATA%\...\live-system-data\.data\backups\backup-<时间戳>-<短id>\` |
 | 白名单知识证据 | 随包 `resources\docs\APPROVED_LIVE_KNOWLEDGE.md`，启动时播种到数据根 `docs\`（SHA256 钉死，不可被改写） |
 | 内置 API | 随包 `resources\api-runtime\`，由主进程以 `ELECTRON_RUN_AS_NODE=1` 拉起（无需额外装 Node） |
