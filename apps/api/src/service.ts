@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import {
@@ -666,9 +667,17 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.database.listKnowledge();
     const capturedAt = '2026-08-14T00:00:00.000Z';
     const validUntil = '2026-09-13T15:59:59.000Z';
-    const sourceUri = process.env.MZG_DOCS_DIR
-      ? resolve(process.env.MZG_DOCS_DIR, 'APPROVED_LIVE_KNOWLEDGE.md')
-      : resolve(import.meta.dirname, '..', '..', '..', 'docs', 'APPROVED_LIVE_KNOWLEDGE.md');
+    // 白名单知识证据路径：优先 MZG_DOCS_DIR（打包模式由主进程注入），
+    // 其次按打包布局 resources/docs，再按开发布局仓库根 docs，最后按独立运行目录逐级回退。
+    const candidates = [
+      process.env.MZG_DOCS_DIR && resolve(process.env.MZG_DOCS_DIR, 'APPROVED_LIVE_KNOWLEDGE.md'),
+      resolve(import.meta.dirname, '..', '..', 'docs', 'APPROVED_LIVE_KNOWLEDGE.md'),
+      resolve(import.meta.dirname, '..', '..', '..', 'docs', 'APPROVED_LIVE_KNOWLEDGE.md'),
+    ].filter((p): p is string => Boolean(p));
+    const sourceUri = candidates.find((p) => existsSync(p));
+    if (!sourceUri) {
+      throw new Error(`直播白名单知识证据不存在，请检查发布包或仓库 docs 目录（查找路径：${candidates.join('；')}）`);
+    }
     const evidenceBytes = await readFile(sourceUri);
     const expectedSha256 = '70be1a0a2228664e39e93289cb79c15ef68413832ce857c0622d7bf0408e5320';
     const actualSha256 = createHash('sha256').update(evidenceBytes).digest('hex');

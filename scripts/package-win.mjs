@@ -5,9 +5,9 @@
  * 流程（任一前置失败即停止，不产出半成品）：
  *   1. 全量构建（contracts / core / api / desktop）
  *   2. 自动测试（API 15 项 + Desktop 3 项），--skip-tests 可跳过
- *   3. pnpm deploy 展平内置 API 运行时 → apps/desktop/build/api-runtime
+ *   3. pnpm deploy（node-linker=hoisted 平铺）生成内置 API 运行时 → apps/desktop/build/api-runtime-hoisted
  *   4. 复制白名单知识证据 → apps/desktop/build/docs/
- *   5. electron-builder 产出 NSIS 安装包 + 便携版（release/ 目录）
+ *   5. electron-builder 产出 NSIS 安装包 + 便携版（release/ 目录）；afterPack 钩子负责把 node_modules 复制进包
  *
  * 环境说明：
  *   - 需要 Node >=24.16 与 pnpm 11.5.0（见工作交接.md §3）
@@ -54,23 +54,16 @@ if (!skipTests) {
   console.log('已通过 --skip-tests 跳过自动测试（仅限演练用，正式发布不允许）');
 }
 
-step('3/5 展平内置 API 运行时（pnpm deploy）');
+step('3/5 生成内置 API 运行时（pnpm deploy，hoisted 平铺布局）');
 rmSync(buildDir, { recursive: true, force: true });
 mkdirSync(buildDir, { recursive: true });
-pnpm(['--filter', '@mzg/live-api', 'deploy', join(buildDir, 'api-runtime'), '--prod', '--legacy']);
-
-// pnpm deploy 产物的 node_modules 是指向全局 store 的符号链接/硬链接，
-// electron-builder 打包 extraResources 时不会跟随，导致发布包缺 node_modules。
-// 这里把整个目录解引用成真实文件，保证发布包自包含、可独立运行。
-step('3b/5 解引用 api-runtime（符号链接 → 真实文件）');
-const staged = join(buildDir, 'api-runtime');
-const derefDir = join(buildDir, 'api-runtime-real');
-rmSync(derefDir, { recursive: true, force: true });
-mkdirSync(derefDir, { recursive: true });
-cpSync(staged, derefDir, { recursive: true, dereference: true });
-rmSync(staged, { recursive: true, force: true });
-renameSync(derefDir, staged);
-console.log(`  解引用完成：${staged}`);
+// node-linker=hoisted：产物为 npm 风格平铺目录（无符号链接），
+// electron-builder 才能把 node_modules 打进包；否则符号链接不被跟随导致内置 API 缺失。
+// 若某版本解析需要联网（store 缓存未覆盖），走国内镜像 registry.npmmirror.com。
+pnpm([
+  '--filter', '@mzg/live-api', 'deploy', join(buildDir, 'api-runtime-hoisted'),
+  '--prod', '--legacy', '--config.node-linker=hoisted',
+], { env: { ...process.env, npm_config_registry: 'https://registry.npmmirror.com' } });
 
 step('4/5 复制白名单知识证据');
 const docsTarget = join(buildDir, 'docs');

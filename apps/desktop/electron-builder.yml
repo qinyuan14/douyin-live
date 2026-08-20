@@ -14,10 +14,11 @@ files:
   - dist-renderer/**/*
   - package.json
 
-# 随包携带的运行时：内置本地 API（pnpm deploy 展平产物）与白名单知识证据
-# 注意：extraResources 默认会过滤 node_modules，必须显式 filter 全部文件
+# 随包携带的运行时：内置本地 API（pnpm deploy --config.node-linker=hoisted 平铺产物）与白名单知识证据
+# 注意：extraResources 默认会过滤 node_modules，必须显式 filter 全部文件；
+# 且 api-runtime 必须用 hoisted（平铺）布局——符号链接布局 electron-builder 不跟随，会导致内置 API 缺失
 extraResources:
-  - from: build/api-runtime
+  - from: build/api-runtime-hoisted
     to: api-runtime
     filter:
       - "**/*"
@@ -27,6 +28,9 @@ extraResources:
       - "**/*"
 
 asar: true
+
+# 打包完成后把内置 API 的 node_modules 复制进包（extraResources 会过滤 node_modules）
+afterPack: ./after-pack.mjs
 
 win:
   target:
