@@ -1,5 +1,5 @@
 import { CircleCheck, CircleDashed, CircleX, Hand, TriangleAlert } from 'lucide-react';
-import type { PreflightCheck } from '@mzg/live-contracts';
+import type { PreflightCheck } from '@liveops/live-contracts';
 
 export function CheckIcon({ status }: { status: PreflightCheck['status'] }) {
   if (status === 'PASS') return <CircleCheck className="status-icon pass" aria-hidden="true" />;

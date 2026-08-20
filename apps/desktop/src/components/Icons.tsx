@@ -1,4 +1,4 @@
 export function CatMark() {
-  return <span className="cat-mark large" aria-label="黑猫掌柜标识"><i /><b /></span>;
+  return <span className="cat-mark large" aria-label="小助手标识"><i /><b /></span>;
 }
 

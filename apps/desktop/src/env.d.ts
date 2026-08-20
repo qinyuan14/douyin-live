@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface Window {
-  mzgDesktop?: {
+  liveDesktop?: {
     getLocalToken: () => string;
   };
 }

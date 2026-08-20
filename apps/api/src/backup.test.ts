@@ -11,7 +11,7 @@ import {
   inspectLocalBackup,
   listLocalBackups,
   restoreLocalBackup,
-} from '@mzg/live-core';
+} from '@liveops/live-core';
 
 /** 造一份最小但完整的业务数据目录。 */
 function buildDataDir(dataDir: string): { evidencePath: string; evidenceSha256: string } {
@@ -42,7 +42,7 @@ function buildDataDir(dataDir: string): { evidencePath: string; evidenceSha256: 
 }
 
 test('backup: 备份-篡改-恢复闭环，数据与证据完整回归', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-backup-roundtrip-'));
+  const root = await mkdtemp(join(tmpdir(), 'live-backup-roundtrip-'));
   try {
     const dataDir = join(root, 'live-system');
     const { evidencePath, evidenceSha256 } = buildDataDir(dataDir);
@@ -72,7 +72,7 @@ test('backup: 备份-篡改-恢复闭环，数据与证据完整回归', async (
 });
 
 test('backup: 备份文件被篡改后整体拒绝恢复，现场数据保持不动', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-backup-tamper-'));
+  const root = await mkdtemp(join(tmpdir(), 'live-backup-tamper-'));
   try {
     const dataDir = join(root, 'live-system');
     const { evidencePath } = buildDataDir(dataDir);
@@ -101,7 +101,7 @@ test('backup: 备份文件被篡改后整体拒绝恢复，现场数据保持不
 });
 
 test('backup: 直播中（LIVE/PAUSED）禁止恢复', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-backup-live-'));
+  const root = await mkdtemp(join(tmpdir(), 'live-backup-live-'));
   try {
     const dataDir = join(root, 'live-system');
     buildDataDir(dataDir);
@@ -124,7 +124,7 @@ test('backup: 直播中（LIVE/PAUSED）禁止恢复', async () => {
 });
 
 test('backup: 跨安装目录恢复会重写证据路径并保持指纹校验通过，不碰身份令牌', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-backup-rehome-'));
+  const root = await mkdtemp(join(tmpdir(), 'live-backup-rehome-'));
   try {
     const backupsRoot = join(root, 'backups');
     const dirA = join(root, 'install-a', 'live-system');
@@ -155,7 +155,7 @@ test('backup: 跨安装目录恢复会重写证据路径并保持指纹校验通
 });
 
 test('backup: 恢复前自动生成安全备份，列表可读', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-backup-safety-'));
+  const root = await mkdtemp(join(tmpdir(), 'live-backup-safety-'));
   try {
     const backupsRoot = join(root, 'backups');
     const dataDir = join(root, 'live-system');

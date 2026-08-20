@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-08-14T05:00:00+08:00",
-  "title": "Design System: 猫掌柜 AI 实景直播经营系统",
+  "title": "Design System: 实景直播经营系统",
   "extensions": {
     "colorMeta": {
       "ink": { "role": "neutral", "displayName": "墨色文字", "canonical": "#17222d", "tonalRamp": ["#101820", "#17222d", "#32404b", "#52606a", "#75818a", "#a5aeb5", "#d2d7db", "#f1f3f4"] },
@@ -68,7 +68,7 @@
   ],
   "narrative": {
     "northStar": "洗护工坊值班板",
-    "overview": "界面像真实洗护车间里一块正在工作的值班板：员工先看到今晚状态、设备和风险，再进入主持、问答与经营记录。品牌性格来自精确工单、检验状态和黑猫掌柜小标识。",
+    "overview": "界面像真实洗护车间里一块正在工作的值班板：员工先看到今晚状态、设备和风险，再进入主持、问答与经营记录。品牌性格来自精确工单、检验状态和小助手小标识。",
     "keyCharacteristics": ["实景画面始终比数据和装饰占据更大空间。", "状态同时使用图标、文字与颜色。", "未知状态必须直接写出。", "黑猫标识不遮挡真实操作。"],
     "rules": [
       { "name": "Evidence Color", "body": "绿、黄、红只表达已经由系统确定的状态，不作为装饰。", "section": "colors" },

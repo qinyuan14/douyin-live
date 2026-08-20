@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { OfferSnapshot } from '@mzg/live-contracts';
+import type { OfferSnapshot } from '@liveops/live-contracts';
 import { selectCurrentOffer } from './offers.ts';
 
 const now = new Date('2026-08-14T12:00:00.000Z');

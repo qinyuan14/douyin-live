@@ -1,4 +1,4 @@
-# 猫掌柜直播经营系统 —— 发布与回滚预案
+# 实景直播经营系统 —— 发布与回滚预案
 
 > 版本：v1（2026-08-20 建立，随任务C 首次打包）
 > 配套：`工作交接.md`、`progress-data.js`、`docs/PRODUCT_SPEC.md`
@@ -8,7 +8,7 @@
 ## 1. 版本管理约定
 
 - 版本号遵循语义化：`主.次.修订`（当前 `0.1.0`，正式商用前主版本保持 0）。
-- 版本号唯一来源：`apps/desktop/package.json` 的 `version` 字段；打包产物文件名带版本号（`猫掌柜直播经营系统-v<版本>-x64.exe`）。
+- 版本号唯一来源：`apps/desktop/package.json` 的 `version` 字段；打包产物文件名带版本号（`实景直播经营系统-v<版本>-x64.exe`）。
 - 每次发布：
   1. 更新 `apps/desktop/package.json` 版本号；
   2. 运行发布前检查（见 §2）；
@@ -41,8 +41,8 @@ node scripts/package-win.mjs
 脚本流程：全量构建 → 自动测试 → pnpm deploy（`node-linker=hoisted` 平铺）生成内置 API 运行时 → 复制白名单证据 → electron-builder 产出 **NSIS 安装包 + 便携版**。
 
 产物位置：`release/` 目录
-- `猫掌柜直播经营系统-v<版本>-x64.exe` —— NSIS 安装包（正式安装用，可选手动选目录）
-- `猫掌柜直播经营系统-v<版本>-便携版.exe` —— 便携版（免安装，双击即用，验证用）
+- `实景直播经营系统-v<版本>-x64.exe` —— NSIS 安装包（正式安装用，可选手动选目录）
+- `实景直播经营系统-v<版本>-便携版.exe` —— 便携版（免安装，双击即用，验证用）
 - `win-unpacked/` —— 免安装目录（含 `resources/api-runtime` 内置 API 与 `resources/docs` 白名单证据）
 
 ### 3.2 手动快速打包（跳过测试/脚本，仅验证）
@@ -59,23 +59,23 @@ export ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-
 
 ### 3.3 打包后必须做的冒烟验证
 
-1. **包内完整性**：`release/win-unpacked/resources/api-runtime/node_modules/` 存在且含 `zod`、`@nestjs/core`、`@mzg/live-core`、`type-is/node_modules/media-typer`（hoisted 布局关键嵌套）。
+1. **包内完整性**：`release/win-unpacked/resources/api-runtime/node_modules/` 存在且含 `zod`、`@nestjs/core`、`@liveops/live-core`、`type-is/node_modules/media-typer`（hoisted 布局关键嵌套）。
 2. **启动冒烟**（便携版）：
    ```bash
    cd release/win-unpacked
    unset ELECTRON_RUN_AS_NODE
-   ./猫掌柜直播经营系统.exe
+   ./实景直播经营系统.exe
    ```
    验证：主进程拉起内置 API（3188 端口健康）、数据目录自动创建于
-   `%APPDATA%\猫掌柜直播经营系统\live-system-data\.data\live-system\`（8 个业务 JSON + evidence/ + runtime-token）。
-3. **采集验收**（可选）：`MZG_CAPTURE_DIR=<目录>` 运行，应用自动截图两窗口并退出（exit 0 为通过）。
+   `%APPDATA%\实景直播经营系统\live-system-data\.data\live-system\`（8 个业务 JSON + evidence/ + runtime-token）。
+3. **采集验收**（可选）：`LIVE_CAPTURE_DIR=<目录>` 运行，应用自动截图两窗口并退出（exit 0 为通过）。
 
 ## 4. 数据与安装路径说明
 
 | 项 | 路径 |
 |---|---|
-| 安装目录（NSIS） | 用户可选，默认 `%LOCALAPPDATA%\Programs\猫掌柜直播经营系统` |
-| **业务数据（关键）** | `%APPDATA%\猫掌柜直播经营系统\live-system-data\.data\live-system\`（8 JSON + evidence 证据文件 + runtime-token） |
+| 安装目录（NSIS） | 用户可选，默认 `%LOCALAPPDATA%\Programs\实景直播经营系统` |
+| **业务数据（关键）** | `%APPDATA%\实景直播经营系统\live-system-data\.data\live-system\`（8 JSON + evidence 证据文件 + runtime-token） |
 | 备份包 | `%APPDATA%\...\live-system-data\.data\backups\backup-<时间戳>-<短id>\` |
 | 白名单知识证据 | 随包 `resources\docs\APPROVED_LIVE_KNOWLEDGE.md`，启动时播种到数据根 `docs\`（SHA256 钉死，不可被改写） |
 | 内置 API | 随包 `resources\api-runtime\`，由主进程以 `ELECTRON_RUN_AS_NODE=1` 拉起（无需额外装 Node） |
@@ -92,7 +92,7 @@ export ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-
 ### 5.2 回滚步骤（先保数据，再换程序）
 
 1. **立即停用新版本**：关闭应用；确认 3188 端口无残留进程。
-2. **确认数据完好**：检查 `%APPDATA%\猫掌柜直播经营系统\live-system-data\.data\live-system\` 8 个 JSON 与 `evidence/` 存在。
+2. **确认数据完好**：检查 `%APPDATA%\实景直播经营系统\live-system-data\.data\live-system\` 8 个 JSON 与 `evidence/` 存在。
    - 若数据异常：用**上一份备份**恢复——启动任意可用版本（旧版或便携版），在「数据备份」页选备份执行恢复（恢复前会自动生成安全备份，可再次回退）。
    - 恢复入口同样可通过 API：`POST /api/backups/:name/restore`。
 3. **装回旧版本**：双击上一版 NSIS 安装包覆盖安装，或运行上一版便携版。

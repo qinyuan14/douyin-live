@@ -3,8 +3,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const rounds = Number(process.env.MZG_STRESS_ROUNDS ?? 5);
-const holdSeconds = Number(process.env.MZG_STRESS_HOLD_SECONDS ?? 7200);
+const rounds = Number(process.env.LIVE_STRESS_ROUNDS ?? 5);
+const holdSeconds = Number(process.env.LIVE_STRESS_HOLD_SECONDS ?? 7200);
 const apiEntry = resolve('apps/api/dist/main.js');
 
 for (let round = 1; round <= rounds; round += 1) {
@@ -14,10 +14,10 @@ for (let round = 1; round <= rounds; round += 1) {
   } catch { /* expected when the port is free */ }
   if (occupied) throw new Error('3188端口已有本地服务，压力测试已停止，避免误把其他进程当作本轮结果');
 
-  const root = await mkdtemp(join(tmpdir(), `mzg-live-stress-${round}-`));
+  const root = await mkdtemp(join(tmpdir(), `live-stress-${round}-`));
   const child = spawn(process.execPath, [apiEntry], {
     cwd: process.cwd(),
-    env: { ...process.env, MZG_PROJECT_ROOT: root },
+    env: { ...process.env, LIVE_PROJECT_ROOT: root },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
@@ -39,7 +39,7 @@ for (let round = 1; round <= rounds; round += 1) {
     const holdUntil = Date.now() + holdSeconds * 1000;
     while (Date.now() < holdUntil) {
       if (child.exitCode !== null) throw new Error(`第${round}轮本地服务提前退出：${stderr}`);
-      const response = await fetch('http://127.0.0.1:3188/api/bootstrap', { headers: { 'X-MZG-Local-Token': token } });
+      const response = await fetch('http://127.0.0.1:3188/api/bootstrap', { headers: { 'X-Live-Local-Token': token } });
       if (!response.ok) throw new Error(`第${round}轮健康巡检失败：${response.status}`);
       await new Promise((resolveWait) => setTimeout(resolveWait, Math.min(30_000, Math.max(1_000, holdUntil - Date.now()))));
     }

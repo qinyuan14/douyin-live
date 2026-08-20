@@ -47,10 +47,10 @@ importers:
 
   apps/api:
     dependencies:
-      '@mzg/live-contracts':
+      '@liveops/live-contracts':
         specifier: workspace:0.1.0
         version: link:../../packages/contracts
-      '@mzg/live-core':
+      '@liveops/live-core':
         specifier: workspace:0.1.0
         version: link:../../packages/core
       '@nestjs/common':
@@ -90,7 +90,7 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@mzg/live-contracts':
+      '@liveops/live-contracts':
         specifier: workspace:0.1.0
         version: link:../../packages/contracts
       lucide-react:
@@ -146,7 +146,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@mzg/live-contracts':
+      '@liveops/live-contracts':
         specifier: workspace:0.1.0
         version: link:../contracts
     devDependencies:

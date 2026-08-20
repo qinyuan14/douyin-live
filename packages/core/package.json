@@ -1,5 +1,5 @@
 {
-  "name": "@mzg/live-core",
+  "name": "@liveops/live-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,11 +14,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"@mzg/live-core has no standalone runtime tests\"",
-    "lint": "echo \"@mzg/live-core lint skipped\""
+    "test": "echo \"@liveops/live-core has no standalone runtime tests\"",
+    "lint": "echo \"@liveops/live-core lint skipped\""
   },
   "dependencies": {
-    "@mzg/live-contracts": "workspace:0.1.0"
+    "@liveops/live-contracts": "workspace:0.1.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

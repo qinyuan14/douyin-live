@@ -1,4 +1,4 @@
-import type { OrderOutcome } from '@mzg/live-contracts';
+import type { OrderOutcome } from '@liveops/live-contracts';
 
 export interface CohortReportBase {
   totalOrders: number;

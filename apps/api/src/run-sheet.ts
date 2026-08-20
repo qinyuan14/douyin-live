@@ -1,11 +1,11 @@
-import type { KnowledgeItem, OfferSnapshot, RunSheetSegment } from '@mzg/live-contracts';
+import type { KnowledgeItem, OfferSnapshot, RunSheetSegment } from '@liveops/live-contracts';
 import {
   EVIDENCE_REQUIRED_CLAIMS,
   evidenceMatchesStoredFile,
   findBlockedClaims,
   findSensitiveIntent,
   redactPersonalData,
-} from '@mzg/live-core';
+} from '@liveops/live-core';
 
 const OPENERS = [
   '刚进直播间的朋友，可以先看一下我们现在的真实洗护过程。',

@@ -1,5 +1,5 @@
 {
-  "name": "@mzg/live-contracts",
+  "name": "@liveops/live-contracts",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"@mzg/live-contracts has no runtime tests\"",
-    "lint": "echo \"@mzg/live-contracts lint skipped\""
+    "test": "echo \"@liveops/live-contracts has no runtime tests\"",
+    "lint": "echo \"@liveops/live-contracts lint skipped\""
   },
   "dependencies": {
     "zod": "4.4.3"

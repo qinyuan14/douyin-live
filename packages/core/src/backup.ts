@@ -42,7 +42,7 @@ export const MANAGED_JSON_FILES = [
 export const EVIDENCE_DIR_NAME = 'evidence';
 
 /** 备份包类型标识，防止把无关目录当成备份恢复进来。 */
-export const BACKUP_KIND = 'MZG_LIVE_LOCAL_BACKUP';
+export const BACKUP_KIND = 'LIVE_LOCAL_BACKUP';
 
 /** 备份包内数据子目录名。 */
 const DATA_DIR_NAME = 'data';
@@ -301,7 +301,7 @@ export function createLocalBackup(options: CreateBackupOptions): BackupSummary {
   const manifest: BackupManifest = {
     schemaVersion: 1,
     kind: BACKUP_KIND,
-    product: '猫掌柜 AI 实景直播经营系统',
+    product: '实景直播经营系统',
     createdAt: now.toISOString(),
     sourceDataDir: dataDir,
     label,

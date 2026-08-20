@@ -1,4 +1,4 @@
-import type { LiveSessionState } from '@mzg/live-contracts';
+import type { LiveSessionState } from '@liveops/live-contracts';
 
 const LEGAL_TRANSITIONS: Record<LiveSessionState, LiveSessionState[]> = {
   DRAFT: ['READY', 'STOPPED'],

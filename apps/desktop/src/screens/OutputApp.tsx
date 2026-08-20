@@ -140,7 +140,7 @@ export function OutputApp() {
           void api.updateHardware({ voiceReady: false });
           return;
         }
-        const utterance = new SpeechSynthesisUtterance('猫掌柜中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。');
+        const utterance = new SpeechSynthesisUtterance('实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。');
         utterance.voice = voice;
         utterance.lang = 'zh-CN';
         utterance.onend = () => {
@@ -286,14 +286,14 @@ export function OutputApp() {
       )}
 
       <div className="broadcast-topbar">
-        <div className="brand-lockup"><span className="cat-mark" aria-hidden="true"><i /><b /></span><div><strong>猫掌柜</strong><span>AI主持｜真人洗护</span></div></div>
+        <div className="brand-lockup"><span className="cat-mark" aria-hidden="true"><i /><b /></span><div><strong>实景直播</strong><span>AI主持｜真实作业</span></div></div>
         <div className={`on-air ${live ? 'is-live' : paused ? 'is-paused' : ''}`}><span />{live ? '真实直播中' : paused ? 'AI播报已暂停' : '本地演练画面'}</div>
       </div>
       <div className="broadcast-stage-label"><Sparkles aria-hidden="true" /><span>{sceneLabels[scene] ?? '真实洗护台'}</span></div>
 
       <div className="broadcast-bottom">
         <div className="caption-box" aria-live="polite">
-          <div className="caption-speaker"><span className="mini-cat" aria-hidden="true" />{speaking ? <Volume2 aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}黑猫掌柜</div>
+          <div className="caption-speaker"><span className="mini-cat" aria-hidden="true" />{speaking ? <Volume2 aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}小助手</div>
           <p>{caption}</p>
         </div>
         <div className="offer-strip">

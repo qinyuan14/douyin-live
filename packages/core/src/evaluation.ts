@@ -1,7 +1,7 @@
 import type {
   KnowledgeItem,
   ResponseEvaluationResult,
-} from '@mzg/live-contracts';
+} from '@liveops/live-contracts';
 
 /**
  * 永久禁止表达（PRODUCT_SPEC §4）。出现即不得自动播报，且命中即视为需要证据。

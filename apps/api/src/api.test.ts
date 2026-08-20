@@ -54,9 +54,9 @@ test('expired, unproven and forbidden scripts are never approved', () => {
 });
 
 test('only registered privacy-confirmed evidence can back a displayed offer', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-evidence-registry-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-evidence-registry-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -86,16 +86,16 @@ test('only registered privacy-confirmed evidence can back a displayed offer', as
     assert.equal((await service.bootstrap()).offers.some((item) => item.status === 'ACTIVE'), false);
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('external knowledge stays a reviewed draft and cannot enter automatic speech', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-knowledge-gate-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-knowledge-gate-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -127,16 +127,16 @@ test('external knowledge stays a reviewed draft and cannot enter automatic speec
     await assert.rejects(() => service.saveKnowledge({ ...injected, id: crypto.randomUUID(), answer: '联系13812345678确认' }), /完整隐私/);
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('fresh installation stays fail-closed and creates an auditable draft session', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -150,16 +150,16 @@ test('fresh installation stays fail-closed and creates an auditable draft sessio
     assert.equal(audit.some((entry) => entry.action === 'SESSION_CREATED'), true);
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('concurrent session requests return the same single active session', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-race-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-race-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -168,16 +168,16 @@ test('concurrent session requests return the same single active session', async 
     assert.equal((await service.bootstrap()).sessions.length, 1);
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('orders without a real finished live session and stored evidence never qualify', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-finance-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-finance-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -188,16 +188,16 @@ test('orders without a real finished live session and stored evidence never qual
     assert.ok(report.reasons.includes('尚无已结束且有真实时长的自然流量直播场次'));
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('evidence upload requires a privacy confirmation and rejects visible personal data in text', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mzg-live-api-privacy-'));
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), 'live-api-privacy-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
   const service = new LiveService();
   try {
     await service.onModuleInit();
@@ -210,19 +210,19 @@ test('evidence upload requires a privacy confirmation and rejects visible person
     assert.equal(saved.sha256.length, 64);
   } finally {
     await service.onModuleDestroy();
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test('project data path resolves from the explicit installation root', () => {
-  const previousRoot = process.env.MZG_PROJECT_ROOT;
-  process.env.MZG_PROJECT_ROOT = 'E:\\example-install-root';
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = 'E:\\example-install-root';
   try {
     assert.equal(projectRoot(), 'E:\\example-install-root');
   } finally {
-    if (previousRoot === undefined) delete process.env.MZG_PROJECT_ROOT;
-    else process.env.MZG_PROJECT_ROOT = previousRoot;
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
   }
 });

@@ -11,7 +11,7 @@ import type {
   RestoreResult,
   RunSheetSegment,
   StoreConfig,
-} from '@mzg/live-contracts';
+} from '@liveops/live-contracts';
 
 const API_BASE = 'http://127.0.0.1:3188/api';
 
@@ -92,7 +92,7 @@ export interface AuditEntry {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = window.mzgDesktop?.getLocalToken() ?? '';
+  const token = window.liveDesktop?.getLocalToken() ?? '';
   if (!token) throw new Error('本机桌面身份不可用，所有写入和AI播报已停止');
   const timeoutSignal = AbortSignal.timeout(5_000);
   const response = await fetch(`${API_BASE}${path}`, {
@@ -100,7 +100,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     signal: init?.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal,
     headers: {
       'Content-Type': 'application/json',
-      'X-MZG-Local-Token': token,
+      'X-Live-Local-Token': token,
       ...(init?.headers ?? {}),
     },
   });

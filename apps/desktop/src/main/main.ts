@@ -10,18 +10,18 @@ let apiProcess: ChildProcess | null = null;
 /**
  * 打包模式判定。
  * - 安装/便携包：app.isPackaged 为 true；
- * - 开发期可通过 MZG_PACKAGED=1 强制走打包流程（用于本地验证启动链路，数据目录仍用 userData）。
+ * - 开发期可通过 LIVE_PACKAGED=1 强制走打包流程（用于本地验证启动链路，数据目录仍用 userData）。
  */
 function isPackagedRun(): boolean {
-  return app.isPackaged || process.env.MZG_PACKAGED === '1';
+  return app.isPackaged || process.env.LIVE_PACKAGED === '1';
 }
 
 /**
- * 打包版的数据根目录：%APPDATA%/猫掌柜直播经营系统/live-system-data/。
+ * 打包版的数据根目录：%APPDATA%/实景直播经营系统/live-system-data/。
  * 首次调用时固定 userData 目录，避免应用名差异导致 Chromium 会话数据漂移。
  */
 function packagedDataRoot(): string {
-  const base = join(app.getPath('appData'), '猫掌柜直播经营系统');
+  const base = join(app.getPath('appData'), '实景直播经营系统');
   if (app.getPath('userData') !== base) app.setPath('userData', base);
   return join(base, 'live-system-data');
 }
@@ -30,8 +30,8 @@ function packagedDataRoot(): string {
 function localToken(): string {
   const root = isPackagedRun()
     ? packagedDataRoot()
-    : process.env.MZG_PROJECT_ROOT
-      ? join(process.env.MZG_PROJECT_ROOT)
+    : process.env.LIVE_PROJECT_ROOT
+      ? join(process.env.LIVE_PROJECT_ROOT)
       : join(import.meta.dirname, '..', '..', '..');
   return readFileSync(join(root, '.data', 'live-system', 'runtime-token'), 'utf8').trim();
 }
@@ -65,8 +65,8 @@ async function startBundledApi(): Promise<void> {
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: '1',
-      MZG_PROJECT_ROOT: dataRoot,
-      MZG_DOCS_DIR: join(dataRoot, 'docs'),
+      LIVE_PROJECT_ROOT: dataRoot,
+      LIVE_DOCS_DIR: join(dataRoot, 'docs'),
     },
     stdio: 'inherit',
     windowsHide: false,
@@ -108,7 +108,7 @@ function pngSize(bytes: Buffer): { width: number; height: number } {
 }
 
 function rendererUrl(route: string): string {
-  const devUrl = process.env.MZG_DESKTOP_DEV_URL;
+  const devUrl = process.env.LIVE_DESKTOP_DEV_URL;
   if (devUrl) return `${devUrl}/#/${route}`;
   return `file://${join(dirname(import.meta.dirname), 'dist-renderer', 'index.html')}#/${route}`;
 }
@@ -119,7 +119,7 @@ function securedWebPreferences() {
     nodeIntegration: false,
     sandbox: true,
     preload: join(import.meta.dirname, 'preload.cjs'),
-    additionalArguments: [`--mzg-local-token=${localToken()}`],
+    additionalArguments: [`--live-local-token=${localToken()}`],
   };
 }
 
@@ -129,7 +129,7 @@ function createWindows(): void {
   const controlHeight = Math.min(980, Math.max(780, workArea.height - 100));
 
   controlWindow = new BrowserWindow({
-    title: '猫掌柜直播值班台',
+    title: '实景直播值班台',
     width: controlWidth,
     height: controlHeight,
     minWidth: 1120,
@@ -142,16 +142,16 @@ function createWindows(): void {
 
   // 直播输出窗口必须为 1080×1920 真实像素，供抖音直播伴侣按 9:16 画布原生采集。
   // 窗口高度高于屏幕属正常（输出窗用于被采集，不要求完整可见）；可用环境变量覆盖以适配高分屏或临时验证。
-  const outputWidth = Number(process.env.MZG_OUTPUT_WIDTH ?? 1080);
-  const outputHeight = Number(process.env.MZG_OUTPUT_HEIGHT ?? 1920);
+  const outputWidth = Number(process.env.LIVE_OUTPUT_WIDTH ?? 1080);
+  const outputHeight = Number(process.env.LIVE_OUTPUT_HEIGHT ?? 1920);
   if (!Number.isFinite(outputWidth) || !Number.isFinite(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
-    throw new Error(`直播输出尺寸无效：${process.env.MZG_OUTPUT_WIDTH}x${process.env.MZG_OUTPUT_HEIGHT}`);
+    throw new Error(`直播输出尺寸无效：${process.env.LIVE_OUTPUT_WIDTH}x${process.env.LIVE_OUTPUT_HEIGHT}`);
   }
   if (Math.abs(outputWidth / outputHeight - 9 / 16) > 0.001) {
     throw new Error(`直播输出比例必须为 9:16，当前 ${outputWidth}x${outputHeight}`);
   }
   outputWindow = new BrowserWindow({
-    title: '猫掌柜｜9:16 直播输出',
+    title: '实景直播｜9:16 直播输出',
     width: outputWidth,
     height: outputHeight,
     useContentSize: true,
@@ -165,7 +165,7 @@ function createWindows(): void {
   });
   void outputWindow.loadURL(rendererUrl('output'));
 
-  const captureDir = process.env.MZG_CAPTURE_DIR;
+  const captureDir = process.env.LIVE_CAPTURE_DIR;
   if (captureDir) {
     mkdirSync(captureDir, { recursive: true });
     Promise.all([
@@ -234,7 +234,7 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error(error);
       dialog.showErrorBox(
-        '猫掌柜直播经营系统启动失败',
+        '实景直播经营系统启动失败',
         error instanceof Error ? error.message : '内置本地服务启动失败',
       );
       app.exit(1);

@@ -10,7 +10,7 @@ import {
   type LiveSession,
   type LiveSessionState,
   type RuntimeEvent,
-} from '@mzg/live-contracts';
+} from '@liveops/live-contracts';
 import {
   LiveDatabase,
   assertTransition,
@@ -25,8 +25,8 @@ import {
   listLocalBackups,
   redactPersonalData,
   restoreLocalBackup,
-} from '@mzg/live-core';
-import type { BackupIntegrity, BackupSummary, RestoreResult } from '@mzg/live-contracts';
+} from '@liveops/live-core';
+import type { BackupIntegrity, BackupSummary, RestoreResult } from '@liveops/live-contracts';
 import { buildRunSheet } from './run-sheet.js';
 
 const APPROVED_KNOWLEDGE_EVIDENCE_ID = '00000000-0000-4000-8000-000000000014';
@@ -89,7 +89,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
   health() {
     return {
       ok: true,
-      product: '猫掌柜 AI 实景直播经营系统',
+      product: '实景直播经营系统',
       status: 'LOCAL_COMMERCIAL_CANDIDATE',
       platformAdapter: 'MANUAL',
       now: new Date().toISOString(),
@@ -457,7 +457,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     ]);
     const bundle = {
       schemaVersion: 1,
-      product: '猫掌柜 AI 实景直播经营系统',
+      product: '实景直播经营系统',
       productStatus: 'LOCAL_COMMERCIAL_CANDIDATE',
       generatedAt: new Date().toISOString(),
       authorityNotice: '本文件是本地复核包，不是公司权威经营台账，不证明已商用或已经赚钱。',
@@ -667,10 +667,10 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.database.listKnowledge();
     const capturedAt = '2026-08-14T00:00:00.000Z';
     const validUntil = '2026-09-13T15:59:59.000Z';
-    // 白名单知识证据路径：优先 MZG_DOCS_DIR（打包模式由主进程注入），
+    // 白名单知识证据路径：优先 LIVE_DOCS_DIR（打包模式由主进程注入），
     // 其次按打包布局 resources/docs，再按开发布局仓库根 docs，最后按独立运行目录逐级回退。
     const candidates = [
-      process.env.MZG_DOCS_DIR && resolve(process.env.MZG_DOCS_DIR, 'APPROVED_LIVE_KNOWLEDGE.md'),
+      process.env.LIVE_DOCS_DIR && resolve(process.env.LIVE_DOCS_DIR, 'APPROVED_LIVE_KNOWLEDGE.md'),
       resolve(import.meta.dirname, '..', '..', 'docs', 'APPROVED_LIVE_KNOWLEDGE.md'),
       resolve(import.meta.dirname, '..', '..', '..', 'docs', 'APPROVED_LIVE_KNOWLEDGE.md'),
     ].filter((p): p is string => Boolean(p));
@@ -705,7 +705,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     });
     const evidence = {
       id: APPROVED_KNOWLEDGE_EVIDENCE_ID,
-      title: '猫掌柜公司经营规则库（本地记录，正式试播前复核）',
+      title: '商家经营规则库（本地记录，正式开播前复核）',
       sourceType: 'MERCHANT_RECORD' as const,
       sourceUri: resolve(storedEvidencePath),
       capturedAt,

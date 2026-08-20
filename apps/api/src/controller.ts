@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpException, Param, Patch, Post, Put, Query } from '@nestjs/common';
-import { LiveSessionStateSchema, ResponseEvaluationRequestSchema } from '@mzg/live-contracts';
+import { LiveSessionStateSchema, ResponseEvaluationRequestSchema } from '@liveops/live-contracts';
 import { z } from 'zod';
 import { LiveService } from './service.js';
 

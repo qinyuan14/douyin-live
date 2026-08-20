@@ -3,11 +3,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 
-export const LOCAL_TOKEN_HEADER = 'x-mzg-local-token';
+export const LOCAL_TOKEN_HEADER = 'x-live-local-token';
 
 export function projectRoot(): string {
-  return process.env.MZG_PROJECT_ROOT
-    ? resolve(process.env.MZG_PROJECT_ROOT)
+  return process.env.LIVE_PROJECT_ROOT
+    ? resolve(process.env.LIVE_PROJECT_ROOT)
     : resolve(import.meta.dirname, '..', '..', '..');
 }
 
@@ -43,14 +43,14 @@ export function configureLocalAccess(app: INestApplication, token: string): void
         callback(null, true);
         return;
       }
-      callback(new Error('只允许猫掌柜本机桌面端访问'));
+      callback(new Error('只允许本机桌面端访问'));
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'X-MZG-Local-Token'],
+    allowedHeaders: ['Content-Type', 'X-Live-Local-Token'],
   });
   app.use((request: { method?: string; url?: string; headers: Record<string, string | string[] | undefined> }, response: { status: (code: number) => { json: (body: unknown) => void } }, next: () => void) => {
     if (!localRequestIsAuthorized({ method: request.method, url: request.url, tokenHeader: request.headers[LOCAL_TOKEN_HEADER], expectedToken: token })) {
-      response.status(403).json({ code: 'LOCAL_CLIENT_REQUIRED', message: '只允许本次启动的猫掌柜桌面端读取或写入本地经营数据' });
+      response.status(403).json({ code: 'LOCAL_CLIENT_REQUIRED', message: '只允许本次启动的桌面端读取或写入本地经营数据' });
       return;
     }
     next();

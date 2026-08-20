@@ -1,8 +1,8 @@
-# 猫掌柜直播经营系统 —— Windows 发布包配置（electron-builder）
-# 打包入口：pnpm --filter @mzg/live-desktop package（先跑 scripts/package-win.mjs 组装运行时）
-appId: com.mzg.live-commerce
-productName: 猫掌柜直播经营系统
-copyright: Copyright © 2026 猫掌柜
+# 实景直播经营系统 —— Windows 发布包配置（electron-builder）
+# 打包入口：pnpm --filter @liveops/live-desktop package（先跑 scripts/package-win.mjs 组装运行时）
+appId: com.liveops.desktop
+productName: 实景直播经营系统
+copyright: Copyright © 2026 实景直播经营系统
 
 directories:
   output: ../../release
@@ -43,7 +43,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 猫掌柜直播经营系统
+  shortcutName: 实景直播经营系统
   deleteAppDataOnUninstall: false
 
 portable:

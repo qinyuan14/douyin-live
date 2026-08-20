@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 猫掌柜直播经营系统 —— Windows 发布包构建脚本。
+ * 实景直播经营系统 —— Windows 发布包构建脚本。
  *
  * 流程（任一前置失败即停止，不产出半成品）：
  *   1. 全量构建（contracts / core / api / desktop）
@@ -12,7 +12,7 @@
  * 环境说明：
  *   - 需要 Node >=24.16 与 pnpm 11.5.0（见工作交接.md §3）
  *   - 本机 pnpm store 位于 E:\.pnpm-store；如 pnpm 无法自动定位，
- *     可设 MZG_PNPM_BIN=<pnpm.cjs 绝对路径> 与 npm_config_store_dir=<store 父目录>
+ *     可设 LIVE_PNPM_BIN=<pnpm.cjs 绝对路径> 与 npm_config_store_dir=<store 父目录>
  */
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
@@ -24,7 +24,7 @@ const apiDir = join(root, 'apps', 'api');
 const buildDir = join(desktopDir, 'build');
 const releaseDir = join(root, 'release');
 const skipTests = process.argv.includes('--skip-tests');
-const pnpmBin = process.env.MZG_PNPM_BIN;
+const pnpmBin = process.env.LIVE_PNPM_BIN;
 
 function run(command, args, options = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`);
@@ -48,8 +48,8 @@ pnpm(['run', 'build']);
 
 if (!skipTests) {
   step('2/5 自动测试（API + Desktop）');
-  pnpm(['--filter', '@mzg/live-api', 'test']);
-  pnpm(['--filter', '@mzg/live-desktop', 'test']);
+  pnpm(['--filter', '@liveops/live-api', 'test']);
+  pnpm(['--filter', '@liveops/live-desktop', 'test']);
 } else {
   console.log('已通过 --skip-tests 跳过自动测试（仅限演练用，正式发布不允许）');
 }
@@ -61,7 +61,7 @@ mkdirSync(buildDir, { recursive: true });
 // electron-builder 才能把 node_modules 打进包；否则符号链接不被跟随导致内置 API 缺失。
 // 若某版本解析需要联网（store 缓存未覆盖），走国内镜像 registry.npmmirror.com。
 pnpm([
-  '--filter', '@mzg/live-api', 'deploy', join(buildDir, 'api-runtime-hoisted'),
+  '--filter', '@liveops/live-api', 'deploy', join(buildDir, 'api-runtime-hoisted'),
   '--prod', '--legacy', '--config.node-linker=hoisted',
 ], { env: { ...process.env, npm_config_registry: 'https://registry.npmmirror.com' } });
 
@@ -85,4 +85,4 @@ run(electronBuilder, ['--win', '--config', join(desktopDir, 'electron-builder.ym
 console.log(`\n✅ 发布包已生成：${releaseDir}`);
 console.log('   - NSIS 安装包（推荐正式安装）');
 console.log('   - 便携版 exe（免安装，可直接双击运行验证）');
-console.log('冒烟验证：MZG_CAPTURE_DIR=<目录> 运行便携版，应用会自动截图两窗口并退出（exit 0 为通过）。');
+console.log('冒烟验证：LIVE_CAPTURE_DIR=<目录> 运行便携版，应用会自动截图两窗口并退出（exit 0 为通过）。');

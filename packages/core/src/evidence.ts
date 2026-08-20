@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import type { EvidenceRef } from '@mzg/live-contracts';
+import type { EvidenceRef } from '@liveops/live-contracts';
 
 /**
  * 比对证据引用与本地已保全文件：文件存在、sha256 一致、且在有效期内。

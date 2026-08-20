@@ -9,12 +9,12 @@ import type {
   OrderOutcome,
   RuntimeEvent,
   StoreConfig,
-} from '@mzg/live-contracts';
+} from '@liveops/live-contracts';
 import { evidenceMatchesStoredFile } from './evidence.js';
 
 export function projectRoot(): string {
-  return process.env.MZG_PROJECT_ROOT
-    ? resolve(process.env.MZG_PROJECT_ROOT)
+  return process.env.LIVE_PROJECT_ROOT
+    ? resolve(process.env.LIVE_PROJECT_ROOT)
     : resolve(import.meta.dirname, '..', '..', '..');
 }
 

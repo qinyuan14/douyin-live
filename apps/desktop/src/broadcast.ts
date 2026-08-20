@@ -9,5 +9,5 @@ export type LiveMessage =
   | { type: 'stop-speech'; reason: string };
 
 export function createLiveChannel(): BroadcastChannel {
-  return new BroadcastChannel('mzg-live-runtime-v1');
+  return new BroadcastChannel('live-runtime-v1');
 }

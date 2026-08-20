@@ -45,7 +45,7 @@ import type {
   ResponseEvaluationResult,
   RestoreResult,
   RunSheetSegment,
-} from '@mzg/live-contracts';
+} from '@liveops/live-contracts';
 import { api, type AuditEntry, type BootstrapData, type StoredEvidenceFile } from '../api.js';
 import { createLiveChannel } from '../broadcast.js';
 import { CatMark } from '../components/Icons.js';
@@ -320,7 +320,7 @@ export function ControlApp() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <CatMark />
-          <div><strong>猫掌柜</strong><span>直播经营系统</span></div>
+          <div><strong>实景直播</strong><span>经营系统</span></div>
         </div>
         <nav aria-label="主要功能">
           {NAV_ITEMS.map((item) => {
@@ -738,7 +738,7 @@ function Orders({ data, onSaved, onError }: {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `猫掌柜直播经营复核包-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `实景直播经营复核包-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (error) {

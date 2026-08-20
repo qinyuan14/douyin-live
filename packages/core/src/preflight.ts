@@ -1,4 +1,4 @@
-import type { EvidenceSourceType, OfferSnapshot, PreflightCheck } from '@mzg/live-contracts';
+import type { EvidenceSourceType, OfferSnapshot, PreflightCheck } from '@liveops/live-contracts';
 
 export interface PreflightInput {
   activeOffer: OfferSnapshot | null;
