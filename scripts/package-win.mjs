@@ -28,7 +28,8 @@ const pnpmBin = process.env.LIVE_PNPM_BIN;
 
 function run(command, args, options = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { stdio: 'inherit', ...options });
+  // Windows 下 execFileSync 需要 shell 才能解析 npx/pnpm 这类 .cmd 命令（PATHEXT 查找）
+  execFileSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32', ...options });
 }
 
 function pnpm(args, options = {}) {
@@ -55,8 +56,15 @@ if (!skipTests) {
 }
 
 step('3/5 生成内置 API 运行时（pnpm deploy，hoisted 平铺布局）');
-rmSync(buildDir, { recursive: true, force: true });
+// 只管理 api-runtime-hoisted 子目录（旧 api-runtime 是被取代的符号链接布局残留，
+// 可能被资源管理器/搜索索引占用无法删除——但打包不需要它，跳过即可）
 mkdirSync(buildDir, { recursive: true });
+const hoistedDir = join(buildDir, 'api-runtime-hoisted');
+if (existsSync(hoistedDir)) {
+  const backup = `${hoistedDir}-bak-${Date.now()}`;
+  renameSync(hoistedDir, backup);
+  console.log(`旧 api-runtime-hoisted 已改名备份：${backup}`);
+}
 // node-linker=hoisted：产物为 npm 风格平铺目录（无符号链接），
 // electron-builder 才能把 node_modules 打进包；否则符号链接不被跟随导致内置 API 缺失。
 // 若某版本解析需要联网（store 缓存未覆盖），走国内镜像 registry.npmmirror.com。
@@ -74,7 +82,11 @@ copyFileSync(
 );
 
 step('5/5 electron-builder 打包（NSIS + 便携版）');
-rmSync(releaseDir, { recursive: true, force: true });
+if (existsSync(releaseDir)) {
+  const backup = `${releaseDir}-bak-${Date.now()}`;
+  renameSync(releaseDir, backup);
+  console.log(`旧 release 目录已改名备份：${backup}`);
+}
 mkdirSync(releaseDir, { recursive: true });
 const electronBuilder = join(root, 'node_modules', '.bin', 'electron-builder');
 if (!existsSync(electronBuilder)) {
