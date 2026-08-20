@@ -10,7 +10,7 @@
  *   5. electron-builder 产出 NSIS 安装包 + 便携版（release/ 目录）；afterPack 钩子负责把 node_modules 复制进包
  *
  * 环境说明：
- *   - 需要 Node >=24.16 与 pnpm 11.5.0（见工作交接.md §3）
+ *   - 需要 Node >=24.16 与 pnpm 11.5.0（见 E:\抖音直播\工作交接.json environment）
  *   - 本机 pnpm store 位于 E:\.pnpm-store；如 pnpm 无法自动定位，
  *     可设 LIVE_PNPM_BIN=<pnpm.cjs 绝对路径> 与 npm_config_store_dir=<store 父目录>
  */

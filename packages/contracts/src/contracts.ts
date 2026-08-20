@@ -4,7 +4,7 @@ import { z } from 'zod';
  * 共享类型与校验契约。
  * 这些 schema 同时被 apps/api（运行时校验请求体）与 apps/desktop（仅类型）使用。
  * 重建说明：原 packages/contracts 源码丢失，本文件依据消费方（apps/api、apps/desktop）
- * 的实际使用方式、docs/PRODUCT_SPEC.md 与 APPROVED_LIVE_KNOWLEDGE.md 反推字段后重建。
+ * 的实际使用方式、docs/PRODUCT_SPEC.json 与 APPROVED_LIVE_KNOWLEDGE.md 反推字段后重建。
  */
 
 export const EvidenceSourceTypeSchema = z.enum([

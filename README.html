@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实景直播经营系统 · 产品说明</title>
+<style>
+  :root {
+    --ink: #17222d;
+    --navy: #152838;
+    --paper: #fbfaf6;
+    --surface: #eef1f4;
+    --line: #c8d0d6;
+    --blue: #176b87;
+    --blue-deep: #0d5068;
+    --amber: #be7111;
+    --green: #2c7658;
+    --red: #a63e34;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    line-height: 1.6;
+    padding-bottom: 60px;
+  }
+  .hero {
+    background: var(--navy);
+    color: #fff;
+    padding: 56px 24px 48px;
+    text-align: center;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 12px;
+    letter-spacing: .08em;
+    margin-bottom: 18px;
+  }
+  .hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+  .hero p { margin-top: 12px; color: #cfe0e8; font-size: 15px; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  section {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    margin-top: 24px;
+    padding: 28px 32px;
+  }
+  h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--blue-deep);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--blue); color: #fff; font-size: 14px;
+  }
+  ul { list-style: none; }
+  li { padding: 7px 0 7px 26px; position: relative; font-size: 14px; }
+  li::before { content: "✓"; position: absolute; left: 2px; top: 7px; color: var(--green); font-weight: 700; }
+  .steps { counter-reset: step; }
+  .steps li { counter-increment: step; }
+  .steps li::before { content: counter(step); background: var(--blue); color: #fff; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; top: 9px; left: 0; }
+  code, .code {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    color: var(--blue-deep);
+  }
+  .callout {
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    margin-top: 14px;
+  }
+  .callout.amber { background: #fdf3e3; border: 1px solid #ecd9b4; color: #7a4a0e; }
+  .callout.red { background: #fbeceb; border: 1px solid #ecc9c6; color: #7c2d27; }
+  .callout.blue { background: #e9f2f6; border: 1px solid #c3dbe6; color: #0d5068; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+  .grid2 div { background: var(--surface); border-radius: 12px; padding: 14px 16px; font-size: 13.5px; }
+  .grid2 b { display: block; color: var(--blue-deep); margin-bottom: 4px; }
+  .footer { text-align: center; color: #7a8a94; font-size: 12.5px; margin-top: 32px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } section { padding: 22px 18px; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">本地经营工具 · 非数字人挂机</div>
+  <h1>实景直播经营系统</h1>
+  <p>用真实作业现场 + AI 小助手主持 + 白名单问答与人工兜底，帮你把直播人力降下来，并把付款追踪到履约与复购。</p>
+</div>
+
+<div class="container">
+
+  <section>
+    <h2><span class="num">1</span>这是什么？</h2>
+    <ul>
+      <li><b>1080×1920 竖屏实景输出窗口</b> + 独立员工控制台，双窗口协作</li>
+      <li>首次启动向导：填写你的<b>品牌名、真实服务范围与商品类目</b>（不内置任何行业模板）</li>
+      <li>两小时非循环 AI 流程表、本地中文语音、字幕与商品提示</li>
+      <li>开播硬门禁：书面确认、服务范围、完整成本、设备、素材、当次授权——缺一不开播</li>
+      <li>经营闭环：付款 → 履约 → 完成 → 复购 → 成本，全部本地留存、可复核、可备份恢复</li>
+    </ul>
+    <div class="callout blue">
+      定位：它<b>不会</b>自动登录、自动开播、抓弹幕、模拟点击或改价。平台账号、价格、资金和开播动作始终留在你手中，本系统只做本地验证过的合规内容自动播报。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>购买与激活</h2>
+    <p style="font-size:14px; margin-bottom:10px;">本工具为付费软件，首次使用需要输入<b>授权码</b>激活：</p>
+    <ol class="steps">
+      <li>启动软件后，在激活界面<b>复制本机机器码</b>，发给卖家</li>
+      <li>卖家根据你的机器码生成<b>激活码</b>（例如 <span class="code">v1.xxxxxxxx.0000000000.签名</span>）</li>
+      <li>把激活码粘贴到激活界面，完成激活即可使用</li>
+    </ol>
+    <div class="callout amber">
+      ⚠️ 授权码与这台电脑<b>一一绑定</b>——拷贝激活文件到别的电脑无效（防复制传播）。<br>
+      换电脑 / 重装系统后需要重新激活，请联系卖家重新生成。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">3</span>本地启动（开发/自用）</h2>
+    <ul>
+      <li>环境要求：Windows 10/11，Node.js 24.16+，pnpm 11.5.0</li>
+      <li>开发模式：<span class="code">pnpm install</span> 后 <span class="code">pnpm dev</span>——会打开员工控制台和竖屏直播输出两个窗口</li>
+      <li>生产构建：<span class="code">pnpm check</span> 验证，<span class="code">pnpm start</span> 运行</li>
+    </ul>
+    <div class="callout blue">
+      API 仅监听本机 127.0.0.1:3188；每次启动生成新的本机身份令牌，没有本次令牌的网页或程序不能读取或写入你的经营数据。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">4</span>安全说明（重要）</h2>
+    <ul>
+      <li>本系统<b>不会</b>登录抖音、开播、挂商品、改价、退款、核销、私信或投流</li>
+      <li>首版不读取抖音弹幕；员工在控制台选择问题类型或输入脱敏问题</li>
+      <li><span class="code">.data/</span> 内是本地工作记录，不是公司经营权威台账</li>
+      <li>上传的证据必须先人工脱敏；文本证据会再做常见隐私检查</li>
+      <li>员工或外部程序新增的知识只能作为待复核草稿，<b>不能直接进入自动播报</b>；自动播报只使用安装包内锁定且证据登记一致的白名单知识</li>
+      <li>没有平台规则书面确认、完整成本、摄像头和当次开播授权时，正式开播状态保持阻断</li>
+    </ul>
+    <div class="callout red">
+      必须在抖音直播伴侣预览中确认 1080×1920 画布采集稳定，未通过前<b>不得真实开播</b>。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">5</span>商家需知（开播前置条件）</h2>
+    <div class="grid2">
+      <div><b>平台规则书面确认</b>当前账号、商品和履约方式对应的官方书面答复</div>
+      <div><b>服务范围确认</b>在初始化向导中确认真实可执行的服务范围</div>
+      <div><b>完整成本</b>平台净结算、履约、生产、耗材、值守、返工、售后成本</div>
+      <div><b>设备验证</b>摄像头、语音、虚拟音频、人工声音接管通过预览验证</div>
+      <div><b>素材权利</b>素材权利和 AI 标识通过审核</div>
+      <div><b>当次授权</b>对具体账号、商品、日期和开播动作取得当次明确授权</div>
+    </div>
+    <div class="callout amber">6 项硬门禁全部满足前，系统状态保持「本地商用候选」，仅允许本地演练与直播伴侣预览。</div>
+  </section>
+
+  <div class="footer">实景直播经营系统 · 版本 v0.1.0 · 2026-08-21</div>
+</div>
+
+</body>
+</html>

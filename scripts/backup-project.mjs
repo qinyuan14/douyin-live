@@ -83,7 +83,7 @@ if (entries.length === 0) {
 console.log('\n=== 3/3 关键运营文档 ===');
 const docsSnapshot = join(target, 'docs', `liveops-docs-${date}`);
 mkdirSync(docsSnapshot, { recursive: true });
-const docFiles = ['工作交接.md', 'progress-data.js', '项目内容报告.md'];
+const docFiles = ['工作交接.json', 'progress-data.js'];
 let copied = 0;
 for (const name of docFiles) {
   const src = join(workspaceRoot, name);

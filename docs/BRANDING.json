@@ -1,0 +1,43 @@
+{
+  "docType": "branding",
+  "schemaVersion": 1,
+  "title": "品牌命名映射（任务E：去「猫掌柜」绑定 · 大众化）",
+  "updatedAt": "2026-08-21",
+  "audience": "ai-team",
+  "note": "占位品牌名：实景直播经营系统（正式名待老板最终拍板，后改需重新打包）。本文档是全仓品牌/命名的单一权威映射表；任何新代码不得再引入旧品牌词。",
+  "userFacing": [
+    { "old": "猫掌柜直播经营系统", "new": "实景直播经营系统", "where": "窗口标题、安装包名、数据根目录、错误弹窗、文档" },
+    { "old": "猫掌柜 AI 实景直播经营系统", "new": "实景直播经营系统", "where": "网页标题、product 字段、文档" },
+    { "old": "黑猫掌柜（IP 形象）", "new": "小助手（视觉保留）", "where": "输出屏字幕、图标 aria-label、语音试听文案" },
+    { "old": "猫掌柜公司经营规则库", "new": "商家经营规则库", "where": "白名单知识证据标题" },
+    { "old": "猫掌柜｜9:16 直播输出", "new": "实景直播｜9:16 直播输出", "where": "输出窗口标题" },
+    { "old": "猫掌柜直播值班台", "new": "实景直播值班台", "where": "控制窗口标题" }
+  ],
+  "technical": [
+    { "old": "mzg-live-commerce-system（根包）", "new": "liveops-system", "note": "根 package.json name" },
+    { "old": "@mzg/live-contracts", "new": "@liveops/live-contracts", "note": "子包" },
+    { "old": "@mzg/live-core", "new": "@liveops/live-core", "note": "子包" },
+    { "old": "@mzg/live-api", "new": "@liveops/live-api", "note": "子包" },
+    { "old": "@mzg/live-desktop", "new": "@liveops/live-desktop", "note": "子包" },
+    { "old": "com.mzg.live-commerce", "new": "com.liveops.desktop", "note": "electron-builder appId" },
+    { "old": "MZG_* 环境变量前缀", "new": "LIVE_*", "note": "如 MZG_PROJECT_ROOT→LIVE_PROJECT_ROOT、MZG_DOCS_DIR→LIVE_DOCS_DIR、MZG_PACKAGED→LIVE_PACKAGED、MZG_CAPTURE_DIR→LIVE_CAPTURE_DIR、MZG_DESKTOP_DEV_URL→LIVE_DESKTOP_DEV_URL、MZG_OUTPUT_WIDTH/HEIGHT→LIVE_OUTPUT_WIDTH/HEIGHT、MZG_PNPM_BIN→LIVE_PNPM_BIN、MZG_STRESS_*→LIVE_STRESS_*" },
+    { "old": "X-MZG-Local-Token（HTTP 头）", "new": "X-Live-Local-Token", "note": "本地守卫 token" },
+    { "old": "x-mzg-local-token（常量）", "new": "x-live-local-token", "note": "LOCAL_TOKEN_HEADER 值" },
+    { "old": "--mzg-local-token=（命令行参数）", "new": "--live-local-token=", "note": "preload 注入" },
+    { "old": "window.mzgDesktop（preload 桥）", "new": "window.liveDesktop", "note": "渲染层桥接" },
+    { "old": "mzg-live-runtime-v1（BroadcastChannel）", "new": "live-runtime-v1", "note": "双窗口通信" },
+    { "old": "MZG_LIVE_LOCAL_BACKUP（备份 kind）", "new": "LIVE_LOCAL_BACKUP", "note": "backup.ts" },
+    { "old": "测试临时目录 mzg-* 前缀", "new": "live-*", "note": "测试 mkdtemp" }
+  ],
+  "legacyDataMigration": {
+    "old": "%APPDATA%\\猫掌柜直播经营系统\\",
+    "new": "%APPDATA%\\实景直播经营系统\\",
+    "strategy": "当前无真实用户，首次发布版提供轻量迁移（检测旧目录存在则提示/复制），不强制"
+  },
+  "history": [
+    { "stage": "阶段2", "item": "业务硬编码去通用化（服务区钟山/水城、商品类目洗护鞋、话术）", "status": "已完成" },
+    { "stage": "阶段2", "item": "白名单知识内容改通用合规模板 + SHA256 指纹联动", "status": "已完成" },
+    { "stage": "阶段3", "item": "离线授权码机制（可售卖）", "status": "已完成" },
+    { "stage": "阶段4", "item": "README / 售卖文档", "status": "已完成" }
+  ]
+}
