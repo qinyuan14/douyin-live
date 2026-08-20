@@ -17,7 +17,7 @@ function hasEvidence(offer: OfferSnapshot | null, sourceType: EvidenceSourceType
 }
 
 /**
- * 开播硬门禁（通用合规模板，任务E·阶段2 由猫掌柜专属改大众化）。状态含义：
+ * 开播硬门禁（通用合规模板，任务E 由原品牌专属改大众化）。状态含义：
  * - PASS：已满足
  * - BLOCKED：必需的书面/成本/素材证据缺失，硬阻断
  * - MANUAL_REQUIRED：需在本机或直播伴侣内人工确认（摄像头/语音/接管、当次授权）
