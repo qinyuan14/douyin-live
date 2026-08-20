@@ -1,0 +1,50 @@
+# 猫掌柜直播经营系统 —— Windows 发布包配置（electron-builder）
+# 打包入口：pnpm --filter @mzg/live-desktop package（先跑 scripts/package-win.mjs 组装运行时）
+appId: com.mzg.live-commerce
+productName: 猫掌柜直播经营系统
+copyright: Copyright © 2026 猫掌柜
+
+directories:
+  output: ../../release
+  buildResources: build
+
+# 打进 asar 的桌面端本体：主进程编译产物 + 渲染层构建产物
+files:
+  - dist-main/**/*
+  - dist-renderer/**/*
+  - package.json
+
+# 随包携带的运行时：内置本地 API（pnpm deploy 展平产物）与白名单知识证据
+# 注意：extraResources 默认会过滤 node_modules，必须显式 filter 全部文件
+extraResources:
+  - from: build/api-runtime
+    to: api-runtime
+    filter:
+      - "**/*"
+  - from: build/docs
+    to: docs
+    filter:
+      - "**/*"
+
+asar: true
+
+win:
+  target:
+    - nsis
+    - portable
+  artifactName: ${productName}-v${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 猫掌柜直播经营系统
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-v${version}-便携版.${ext}
+
+electronLanguages:
+  - zh-CN
+  - en-US

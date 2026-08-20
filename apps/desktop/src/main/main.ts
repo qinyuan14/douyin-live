@@ -1,9 +1,106 @@
-import { app, BrowserWindow, Menu, screen } from 'electron';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { app, BrowserWindow, Menu, screen, dialog } from 'electron';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 let controlWindow: BrowserWindow | null = null;
 let outputWindow: BrowserWindow | null = null;
+let apiProcess: ChildProcess | null = null;
+
+/**
+ * 打包模式判定。
+ * - 安装/便携包：app.isPackaged 为 true；
+ * - 开发期可通过 MZG_PACKAGED=1 强制走打包流程（用于本地验证启动链路，数据目录仍用 userData）。
+ */
+function isPackagedRun(): boolean {
+  return app.isPackaged || process.env.MZG_PACKAGED === '1';
+}
+
+/**
+ * 打包版的数据根目录：%APPDATA%/猫掌柜直播经营系统/live-system-data/。
+ * 首次调用时固定 userData 目录，避免应用名差异导致 Chromium 会话数据漂移。
+ */
+function packagedDataRoot(): string {
+  const base = join(app.getPath('appData'), '猫掌柜直播经营系统');
+  if (app.getPath('userData') !== base) app.setPath('userData', base);
+  return join(base, 'live-system-data');
+}
+
+/** 主进程本地令牌读取：打包版从数据根目录读，开发版沿用仓库根。 */
+function localToken(): string {
+  const root = isPackagedRun()
+    ? packagedDataRoot()
+    : process.env.MZG_PROJECT_ROOT
+      ? join(process.env.MZG_PROJECT_ROOT)
+      : join(import.meta.dirname, '..', '..', '..');
+  return readFileSync(join(root, '.data', 'live-system', 'runtime-token'), 'utf8').trim();
+}
+
+/**
+ * 打包版：把随包携带的 docs/APPROVED_LIVE_KNOWLEDGE.md 播种到数据根目录的 docs/。
+ * 该文件的白名单知识是 seedKnowledge 的校验证据（SHA256 钉死），必须存在且不可被覆盖改写。
+ */
+function seedDocsToDataRoot(): void {
+  if (!isPackagedRun()) return;
+  const source = join(process.resourcesPath, 'docs', 'APPROVED_LIVE_KNOWLEDGE.md');
+  const targetDir = join(packagedDataRoot(), 'docs');
+  const target = join(targetDir, 'APPROVED_LIVE_KNOWLEDGE.md');
+  if (!existsSync(source)) throw new Error(`发布包缺少白名单知识文件：${source}`);
+  mkdirSync(targetDir, { recursive: true });
+  if (!existsSync(target)) copyFileSync(source, target);
+}
+
+/**
+ * 打包版：拉起内置本地 API 服务。
+ * 技巧：ELECTRON_RUN_AS_NODE=1 让 electron.exe 以纯 Node 模式运行 api-runtime/dist/main.js，
+ * 无需在发布包中额外携带 node.exe。
+ */
+async function startBundledApi(): Promise<void> {
+  if (!isPackagedRun()) return;
+  const entry = join(process.resourcesPath, 'api-runtime', 'dist', 'main.js');
+  if (!existsSync(entry)) throw new Error(`发布包缺少内置服务：${entry}`);
+  const dataRoot = packagedDataRoot();
+  mkdirSync(dataRoot, { recursive: true });
+  apiProcess = spawn(process.execPath, [entry], {
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      MZG_PROJECT_ROOT: dataRoot,
+      MZG_DOCS_DIR: join(dataRoot, 'docs'),
+    },
+    stdio: 'inherit',
+    windowsHide: false,
+  });
+  apiProcess.on('exit', (code) => {
+    console.error(`内置本地服务已退出（code=${code}）`);
+    apiProcess = null;
+  });
+  await waitForApiHealth();
+}
+
+async function waitForApiHealth(): Promise<void> {
+  const deadline = Date.now() + 25_000;
+  while (Date.now() < deadline) {
+    if (apiProcess?.exitCode !== null && apiProcess?.exitCode !== undefined) {
+      throw new Error(`内置本地服务启动失败（退出码 ${apiProcess.exitCode}）`);
+    }
+    try {
+      const response = await fetch('http://127.0.0.1:3188/api/health', { signal: AbortSignal.timeout(1_500) });
+      if (response.ok) return;
+    } catch {
+      // 服务尚未就绪，继续轮询
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  throw new Error('内置本地服务 25 秒内未就绪，请确认端口 3188 未被其他程序占用');
+}
+
+function stopBundledApi(): void {
+  if (apiProcess) {
+    apiProcess.kill();
+    apiProcess = null;
+  }
+}
 
 function pngSize(bytes: Buffer): { width: number; height: number } {
   if (bytes.toString('ascii', 1, 4) !== 'PNG') throw new Error('截图不是有效PNG文件');
@@ -13,14 +110,7 @@ function pngSize(bytes: Buffer): { width: number; height: number } {
 function rendererUrl(route: string): string {
   const devUrl = process.env.MZG_DESKTOP_DEV_URL;
   if (devUrl) return `${devUrl}/#/${route}`;
-  return `file://${join(import.meta.dirname, '..', 'dist-renderer', 'index.html')}#/${route}`;
-}
-
-function localToken(): string {
-  const root = process.env.MZG_PROJECT_ROOT
-    ? join(process.env.MZG_PROJECT_ROOT)
-    : join(import.meta.dirname, '..', '..', '..');
-  return readFileSync(join(root, '.data', 'live-system', 'runtime-token'), 'utf8').trim();
+  return `file://${join(dirname(import.meta.dirname), 'dist-renderer', 'index.html')}#/${route}`;
 }
 
 function securedWebPreferences() {
@@ -135,12 +225,28 @@ function createWindows(): void {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
+  if (isPackagedRun()) {
+    try {
+      seedDocsToDataRoot();
+      await startBundledApi();
+    } catch (error) {
+      console.error(error);
+      dialog.showErrorBox(
+        '猫掌柜直播经营系统启动失败',
+        error instanceof Error ? error.message : '内置本地服务启动失败',
+      );
+      app.exit(1);
+      return;
+    }
+  }
   createWindows();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindows();
   });
 });
+
+app.on('will-quit', () => stopBundledApi());
 
 app.on('window-all-closed', () => app.quit());

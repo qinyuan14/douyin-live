@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist-main/main.js",
   "scripts": {
     "dev:web": "vite --host 127.0.0.1 --port 5173",
     "dev:main": "tsc -p tsconfig.main.json --watch --preserveWatchOutput",
     "build": "pnpm --filter @mzg/live-contracts build && vite build && tsc -p tsconfig.main.json",
     "typecheck": "pnpm --filter @mzg/live-contracts build && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.main.json",
     "test": "node --test src/lib/*.test.ts",
-    "lint": "eslint src --max-warnings=0"
+    "lint": "eslint src --max-warnings=0",
+    "package": "node ../../scripts/package-win.mjs"
   },
   "dependencies": {
     "@mzg/live-contracts": "workspace:0.1.0",

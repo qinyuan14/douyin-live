@@ -9,3 +9,9 @@ test-results/
 .env
 .env.local
 
+release/
+apps/desktop/build/
+.build-test/
+
+# 临时文件
+_tmp_*
