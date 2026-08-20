@@ -15,7 +15,7 @@ test('run sheet covers exactly two hours without repeating one segment', () => {
   const sha256 = createHash('sha256').update(readFileSync(sourceUri)).digest('hex');
   const evidence = { id: 'merchant-rule', title: '已批准商户规则', sourceType: 'MERCHANT_RECORD' as const, sourceUri, capturedAt: new Date().toISOString(), validUntil: future, sha256 };
   const sheet = buildRunSheet([{
-    id: crypto.randomUUID(), intent: 'scope', label: '服务范围', answer: '普通鞋基础洗护以有效商品说明为准。',
+    id: crypto.randomUUID(), intent: 'scope', label: '服务范围', answer: '常规服务以有效商品说明为准。',
     decision: 'AUTO_ALLOWED', risk: 'LOW', evidenceRefs: [evidence], validUntil: future, status: 'ACTIVE',
   }], null, new Date(), () => true);
   assert.equal(sheet.length, 60);
@@ -23,7 +23,7 @@ test('run sheet covers exactly two hours without repeating one segment', () => {
   assert.equal(new Set(sheet.map((segment) => segment.script)).size, 60);
   assert.equal(sheet.filter((segment) => segment.approved).length, 48);
   assert.equal(buildRunSheet([{
-    id: crypto.randomUUID(), intent: 'scope', label: '服务范围', answer: '普通鞋基础洗护以有效商品说明为准。',
+    id: crypto.randomUUID(), intent: 'scope', label: '服务范围', answer: '常规服务以有效商品说明为准。',
     decision: 'AUTO_ALLOWED', risk: 'LOW', evidenceRefs: [evidence], validUntil: future, status: 'ACTIVE',
   }], null).some((segment) => segment.approved), false);
 });
@@ -67,7 +67,7 @@ test('only registered privacy-confirmed evidence can back a displayed offer', as
     const validUntil = new Date(Date.now() + 86_400_000).toISOString();
     await assert.rejects(() => service.saveOffer({
       id: crypto.randomUUID(), productId: 'fake', title: '伪证据商品', priceCents: 990, regularPriceCents: 5900,
-      shoeTypes: ['运动鞋'], serviceAreas: ['钟山区主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
+      shoeTypes: ['常规品类'], serviceAreas: ['主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
       evidenceRefs: [{ id: crypto.randomUUID(), title: '普通文件', sourceType: 'MERCHANT_RECORD', sourceUri: fakePath, capturedAt: now, validUntil, sha256 }],
     }), /已保全/);
     const saved = await service.saveEvidenceFile({
@@ -75,7 +75,7 @@ test('only registered privacy-confirmed evidence can back a displayed offer', as
     });
     const offer = {
       id: crypto.randomUUID(), productId: 'real', title: '已保全商品', priceCents: 990, regularPriceCents: 5900,
-      shoeTypes: ['运动鞋'], serviceAreas: ['钟山区主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
+      shoeTypes: ['常规品类'], serviceAreas: ['主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
       evidenceRefs: [{ id: saved.id, title: '商品来源', sourceType: 'MERCHANT_RECORD', sourceUri: saved.sourceUri, capturedAt: now, validUntil, sha256: saved.sha256 }],
     } as const;
     await service.saveOffer(offer);
@@ -105,7 +105,7 @@ test('external knowledge stays a reviewed draft and cannot enter automatic speec
     const now = new Date().toISOString();
     const validUntil = new Date(Date.now() + 86_400_000).toISOString();
     const injected = {
-      id: crypto.randomUUID(), intent: 'injected-promise', label: '外部承诺', answer: '普通鞋基础洗护承诺十二小时送回',
+      id: crypto.randomUUID(), intent: 'injected-promise', label: '外部承诺', answer: '常规服务承诺十二小时送回',
       decision: 'AUTO_ALLOWED' as const, risk: 'LOW' as const, status: 'ACTIVE' as const, validUntil,
       evidenceRefs: [{ id: crypto.randomUUID(), title: '未登记文件', sourceType: 'MERCHANT_RECORD' as const, sourceUri: ordinaryPath, capturedAt: now, validUntil, sha256: ordinarySha }],
     };

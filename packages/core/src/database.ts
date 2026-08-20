@@ -53,6 +53,12 @@ const ACTIVE_SESSION_STATES = new Set(['DRAFT', 'PREFLIGHT_BLOCKED', 'READY', 'L
 const DEFAULT_CONFIG: StoreConfig = {
   presenceIntervalMinutes: 5,
   maxMissedPresence: 2,
+  storeName: '',
+  tagline: '',
+  serviceAreas: [],
+  serviceAreasConfirmed: false,
+  productCategories: [],
+  onboardingCompleted: false,
 };
 
 export class LiveDatabase {
@@ -91,7 +97,8 @@ export class LiveDatabase {
 
   private async load(): Promise<void> {
     this.state = {
-      config: this.readJson<StoreConfig>('config', DEFAULT_CONFIG),
+      // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段
+      config: { ...DEFAULT_CONFIG, ...this.readJson<StoreConfig>('config', DEFAULT_CONFIG) },
       offers: this.readJson<OfferSnapshot[]>('offers', []),
       knowledge: this.readJson<KnowledgeItem[]>('knowledge', []),
       sessions: this.readJson<LiveSession[]>('sessions', []),
@@ -167,6 +174,24 @@ export class LiveDatabase {
       }
       if (typeof patch.maxMissedPresence === 'number') {
         this.state.config.maxMissedPresence = patch.maxMissedPresence;
+      }
+      if (typeof patch.storeName === 'string') {
+        this.state.config.storeName = patch.storeName;
+      }
+      if (typeof patch.tagline === 'string') {
+        this.state.config.tagline = patch.tagline;
+      }
+      if (Array.isArray(patch.serviceAreas)) {
+        this.state.config.serviceAreas = patch.serviceAreas.map((item) => String(item)).filter(Boolean);
+      }
+      if (typeof patch.serviceAreasConfirmed === 'boolean') {
+        this.state.config.serviceAreasConfirmed = patch.serviceAreasConfirmed;
+      }
+      if (Array.isArray(patch.productCategories)) {
+        this.state.config.productCategories = patch.productCategories.map((item) => String(item)).filter(Boolean);
+      }
+      if (typeof patch.onboardingCompleted === 'boolean') {
+        this.state.config.onboardingCompleted = patch.onboardingCompleted;
       }
     }
     this.persist();

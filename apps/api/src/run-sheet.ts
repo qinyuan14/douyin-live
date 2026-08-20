@@ -8,20 +8,19 @@ import {
 } from '@liveops/live-core';
 
 const OPENERS = [
-  '刚进直播间的朋友，可以先看一下我们现在的真实洗护过程。',
-  '这里不是录播，镜头里是正在进行的鞋类洗护操作。',
-  '大家可以留意鞋面、鞋底和鞋带是怎样分步骤处理的。',
-  '今天我们只讲已经核对过的普通鞋基础洗护规则。',
-  '如果你也有日常穿的白鞋或运动鞋，可以先看看这个处理细节。',
+  '刚进直播间的朋友，可以先看一下我们现在的真实作业过程。',
+  '这里不是录播，镜头里是正在进行的真实服务操作。',
+  '大家可以留意现场每一步是怎样分步骤处理的。',
+  '今天我们只讲已经核对过的常规服务规则。',
+  '如果你也有类似的服务需求，可以先看看这个处理细节。',
   '这会儿镜头给到真实工作台，工作人员不会露脸。',
 ] as const;
 
 const CLOSERS = [
-  '具体是否适合，仍要以员工收鞋后的实际检查为准。',
-  '特殊材质不要直接下结论，我们会先让员工评估。',
+  '具体是否适合，仍要以员工收件后的实际检查为准。',
+  '特殊情形不要直接下结论，我们会先让员工评估。',
   '价格和可购买状态，请以直播间当前有效商品为准。',
   '涉及个别订单或售后争议时，我们会请员工核实后答复。',
-  '服务范围以已经确认的钟山、水城主城区清单为准。',
 ] as const;
 
 const SCENES: RunSheetSegment['scene'][] = [
@@ -32,7 +31,7 @@ const SCENES: RunSheetSegment['scene'][] = [
   'OFFER',
 ];
 
-const PHASES = ['开场观察', '清洁准备', '鞋面处理', '鞋底处理', '细节复核', '收尾说明'] as const;
+const PHASES = ['开场观察', '接收准备', '主流程处理', '细节复核', '收尾确认'] as const;
 
 type EvidenceAuthorizer = (refs: KnowledgeItem['evidenceRefs']) => boolean;
 
@@ -47,7 +46,11 @@ export function buildRunSheet(
   offer: OfferSnapshot | null,
   now = new Date(),
   evidenceAuthorized: EvidenceAuthorizer = () => false,
+  settings: { serviceAreas: string[] } | null = null,
 ): RunSheetSegment[] {
+  const serviceAreaCloser = settings && settings.serviceAreas.length > 0
+    ? `服务范围以已经确认的${settings.serviceAreas.join('、')}清单为准。`
+    : null;
   const active = knowledge.filter((item) =>
     item.status === 'ACTIVE'
     && item.decision === 'AUTO_ALLOWED'
@@ -64,7 +67,8 @@ export function buildRunSheet(
   for (let index = 0; index < 60; index += 1) {
     const topic = topics[index % Math.max(1, topics.length)];
     const opener = OPENERS[index % OPENERS.length];
-    const closer = CLOSERS[Math.floor(index / OPENERS.length) % CLOSERS.length];
+    const closer = serviceAreaCloser
+      ?? CLOSERS[Math.floor(index / OPENERS.length) % CLOSERS.length];
     const offerLine = index % 5 === 4
       ? offer
         ? `当前冻结的新客商品价格是${(offer.priceCents / 100).toFixed(2)}元，适用范围请看直播间商品说明。`

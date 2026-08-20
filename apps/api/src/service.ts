@@ -32,28 +32,28 @@ import { buildRunSheet } from './run-sheet.js';
 const APPROVED_KNOWLEDGE_EVIDENCE_ID = '00000000-0000-4000-8000-000000000014';
 const APPROVED_KNOWLEDGE_DEFINITIONS = [
   {
-    id: '00000000-0000-4000-8000-000000000101', intent: 'service-scope', label: '洗哪些部位', risk: 'LOW' as const, decision: 'AUTO_ALLOWED' as const,
-    answer: '普通鞋基础洗护包含鞋面、鞋底、鞋带和可拆鞋垫的基础清洁，也包含基础除味、自然晾干、质检和独立包装。',
+    id: '00000000-0000-4000-8000-000000000101', intent: 'service-scope', label: '服务范围', risk: 'LOW' as const, decision: 'AUTO_ALLOWED' as const,
+    answer: '我们提供常规的线下服务，具体服务内容、流程和适用条件以直播间当前有效商品说明为准。',
   },
   {
-    id: '00000000-0000-4000-8000-000000000102', intent: 'shoe-types', label: '哪些鞋能洗', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
-    answer: '这款服务适用于运动鞋、小白鞋、帆布鞋和网面鞋。皮革、翻毛等特殊材质需要先由员工评估。',
+    id: '00000000-0000-4000-8000-000000000102', intent: 'eligibility', label: '哪些情况可承接', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
+    answer: '常规情形按有效商品说明承接；特殊情形和高风险需求需要先由员工现场评估。',
   },
   {
     id: '00000000-0000-4000-8000-000000000103', intent: 'turnaround', label: '多久完成', risk: 'MEDIUM' as const, decision: 'AUTO_ALLOWED' as const,
-    answer: '普通鞋在实际取回后，正常洗护目标是二到四天；如果出现真实异常，我们会主动联系说明。',
+    answer: '常规服务在实际接收后，完成时间是合理的目标范围而不是绝对承诺；如果出现真实异常，我们会主动联系说明。',
   },
   {
     id: '00000000-0000-4000-8000-000000000104', intent: 'refund', label: '退款问题', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
-    answer: '退款需要结合鞋子是否已经取回、是否开始清洗和订单实际状态，由员工核实后答复。',
+    answer: '退款需要结合订单实际状态和履约记录，由员工核实后答复。',
   },
   {
-    id: '00000000-0000-4000-8000-000000000105', intent: 'special-material', label: '特殊材质', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
-    answer: '特殊材质和高风险鞋需要员工现场评估并与顾客确认后才能承接。',
+    id: '00000000-0000-4000-8000-000000000105', intent: 'special-case', label: '特殊情形', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
+    answer: '特殊情形和高风险需求需要员工现场评估并与顾客确认后才能承接。',
   },
   {
     id: '00000000-0000-4000-8000-000000000106', intent: 'complaint', label: '投诉赔偿', risk: 'HIGH' as const, decision: 'OPERATOR_REQUIRED' as const,
-    answer: '投诉和赔偿由员工根据订单、收鞋照片和实际履约记录核实处理。',
+    answer: '投诉和赔偿由员工根据订单、现场记录和真实履约情况核实处理。',
   },
 ] as const;
 const APPROVED_KNOWLEDGE_IDS = new Set<string>(APPROVED_KNOWLEDGE_DEFINITIONS.map((item) => item.id));
@@ -127,7 +127,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       orders,
       report,
       preflight,
-      runSheet: buildRunSheet(await this.verifiedApprovedKnowledge(knowledge), activeOffer, new Date(), () => true),
+      runSheet: buildRunSheet(await this.verifiedApprovedKnowledge(knowledge), activeOffer, new Date(), () => true, config),
       hardware: this.hardware,
       runtimeUnsafeReason: this.runtimeUnsafeReason,
     };
@@ -155,9 +155,13 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
 
   async authorizeRunSheetScript(script: string) {
     if (this.runtimeUnsafeReason) throw new Error(this.runtimeUnsafeReason);
-    const [knowledge, activeOffer] = await Promise.all([this.database.listKnowledge(), this.database.getActiveOffer()]);
+    const [knowledge, activeOffer, config] = await Promise.all([
+      this.database.listKnowledge(),
+      this.database.getActiveOffer(),
+      this.database.getStoreConfig(),
+    ]);
     const verifiedKnowledge = await this.verifiedApprovedKnowledge(knowledge);
-    const match = buildRunSheet(verifiedKnowledge, activeOffer, new Date(), () => true).find((segment) => segment.script === script);
+    const match = buildRunSheet(verifiedKnowledge, activeOffer, new Date(), () => true, config).find((segment) => segment.script === script);
     if (!match?.approved) throw new Error('话术已过期、证据不足或命中禁止表达，AI播报已阻断');
     return { allowed: true as const, script: match.script, scene: match.scene };
   }
@@ -255,8 +259,11 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
   }
 
   async preflight() {
-    const activeOffer = await this.database.getActiveOffer();
-    const checks = buildPreflightChecks({ activeOffer, ...this.hardware });
+    const [activeOffer, settings] = await Promise.all([
+      this.database.getActiveOffer(),
+      this.database.getStoreConfig(),
+    ]);
+    const checks = buildPreflightChecks({ activeOffer, settings, ...this.hardware });
     return {
       checks,
       blocked: checks.some((check) => check.status === 'BLOCKED'),
@@ -679,7 +686,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       throw new Error(`直播白名单知识证据不存在，请检查发布包或仓库 docs 目录（查找路径：${candidates.join('；')}）`);
     }
     const evidenceBytes = await readFile(sourceUri);
-    const expectedSha256 = '70be1a0a2228664e39e93289cb79c15ef68413832ce857c0622d7bf0408e5320';
+    const expectedSha256 = 'cf250e8d8711982901787b9db8375e0110456c8915f9df15b1669a5b98964593';
     const actualSha256 = createHash('sha256').update(evidenceBytes).digest('hex');
     if (actualSha256 !== expectedSha256) throw new Error('直播白名单知识证据已变化，必须重新人工复核后更新程序指纹');
     const evidenceDirectory = join(this.database.dataDir, 'evidence');

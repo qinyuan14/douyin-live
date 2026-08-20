@@ -22,7 +22,7 @@ export function OutputApp() {
   const stateRef = useRef('PREFLIGHT_BLOCKED');
   const connectedRef = useRef(false);
   const speechSequenceRef = useRef(0);
-  const [caption, setCaption] = useState('真实洗护现场准备中');
+  const [caption, setCaption] = useState('真实作业现场准备中');
   const [scene, setScene] = useState('WORKBENCH');
   const [state, setState] = useState('PREFLIGHT_BLOCKED');
   const [offerTitle, setOfferTitle] = useState<string | null>(null);
@@ -32,6 +32,9 @@ export function OutputApp() {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [cameraMessage, setCameraMessage] = useState('先扫描设备，再明确选择专用俯拍摄像头');
   const [serviceConnected, setServiceConnected] = useState(false);
+  const [serviceAreas, setServiceAreas] = useState<string[]>([]);
+  const [storeName, setStoreName] = useState('');
+  const [tagline, setTagline] = useState('');
   const [clock, setClock] = useState(new Date());
   const [speaking, setSpeaking] = useState(false);
   const qaSafe = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('qa') === 'safe';
@@ -58,6 +61,9 @@ export function OutputApp() {
       applyState(data.session?.state ?? 'PREFLIGHT_BLOCKED');
       setOfferTitle(activeOffer?.title ?? null);
       setPriceCents(activeOffer?.priceCents ?? null);
+      setServiceAreas(data.config.serviceAreas ?? []);
+      setStoreName(data.config.storeName ?? '');
+      setTagline(data.config.tagline ?? '');
     } catch {
       connectedRef.current = false;
       setServiceConnected(false);
@@ -206,7 +212,7 @@ export function OutputApp() {
         await videoRef.current.play();
       }
       setCameraStatus('preview');
-      setCameraMessage('请检查整个画面，只能包含洗护台和鞋子，不能出现员工人脸');
+      setCameraMessage('请检查整个画面，只能包含真实作业台面和作业内容，不能出现员工人脸');
       const selected = devices.find((device) => device.deviceId === selectedDeviceId);
       await api.updateHardware({
         cameraDeviceId: selectedDeviceId,
@@ -251,7 +257,7 @@ export function OutputApp() {
   const live = state === 'LIVE';
   const paused = state === 'PAUSED';
   const sceneLabels: Record<string, string> = {
-    WORKBENCH: '真实洗护台', PROCESS_CLOSEUP: '工序细节', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '当前商品',
+    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序细节', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '当前商品',
   };
 
   return (
@@ -269,7 +275,7 @@ export function OutputApp() {
             </select>
           )}
           {cameraStatus === 'preview'
-            ? <button type="button" onClick={() => void confirmFraming()}><ShieldCheck />确认只有洗护台且无人脸</button>
+            ? <button type="button" onClick={() => void confirmFraming()}><ShieldCheck />确认只有作业台且无人脸</button>
             : devices.length > 0
               ? <button type="button" disabled={!selectedDeviceId} onClick={() => void previewSelectedCamera()}><Camera />打开所选设备预览</button>
               : <button type="button" onClick={() => void scanCameras()}><RefreshCw />扫描本机摄像头</button>}
@@ -286,10 +292,10 @@ export function OutputApp() {
       )}
 
       <div className="broadcast-topbar">
-        <div className="brand-lockup"><span className="cat-mark" aria-hidden="true"><i /><b /></span><div><strong>实景直播</strong><span>AI主持｜真实作业</span></div></div>
+        <div className="brand-lockup"><span className="cat-mark" aria-hidden="true"><i /><b /></span><div><strong>{storeName || '实景直播'}</strong><span>{tagline || 'AI主持｜真实作业'}</span></div></div>
         <div className={`on-air ${live ? 'is-live' : paused ? 'is-paused' : ''}`}><span />{live ? '真实直播中' : paused ? 'AI播报已暂停' : '本地演练画面'}</div>
       </div>
-      <div className="broadcast-stage-label"><Sparkles aria-hidden="true" /><span>{sceneLabels[scene] ?? '真实洗护台'}</span></div>
+      <div className="broadcast-stage-label"><Sparkles aria-hidden="true" /><span>{sceneLabels[scene] ?? '真实作业台'}</span></div>
 
       <div className="broadcast-bottom">
         <div className="caption-box" aria-live="polite">
@@ -298,7 +304,7 @@ export function OutputApp() {
         </div>
         <div className="offer-strip">
           <div className="offer-copy"><span>{offerTitle ?? '未导入有效商品｜不播报价格'}</span><strong>{priceCents === null ? '价格待核验' : `¥${(priceCents / 100).toFixed(2)}`}</strong></div>
-          <div className="location-copy"><MapPin aria-hidden="true" />钟山 · 水城主城区</div>
+          <div className="location-copy"><MapPin aria-hidden="true" />{serviceAreas.length > 0 ? serviceAreas.join(' · ') : '服务范围待确认'}</div>
         </div>
         <div className="broadcast-footnote"><span>{clock.toLocaleTimeString('zh-CN', { hour12: false })}</span><span><CircleAlert aria-hidden="true" />特殊材质、退款与赔偿由员工核实</span></div>
       </div>

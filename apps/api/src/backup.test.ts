@@ -18,7 +18,7 @@ function buildDataDir(dataDir: string): { evidencePath: string; evidenceSha256: 
   mkdirSync(dataDir, { recursive: true });
   const evidenceDir = join(dataDir, 'evidence');
   mkdirSync(evidenceDir, { recursive: true });
-  const evidenceBytes = Buffer.from('证据原文：洗护规则 v1', 'utf8');
+  const evidenceBytes = Buffer.from('证据原文：服务规则 v1', 'utf8');
   const evidencePath = join(evidenceDir, 'e1.md');
   writeFileSync(evidencePath, evidenceBytes);
   const evidenceSha256 = createHash('sha256').update(evidenceBytes).digest('hex');
@@ -26,9 +26,9 @@ function buildDataDir(dataDir: string): { evidencePath: string; evidenceSha256: 
   const validUntil = new Date(Date.now() + 86_400_000).toISOString();
   writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ presenceIntervalMinutes: 5, maxMissedPresence: 2 }, null, 2));
   writeFileSync(join(dataDir, 'offers.json'), JSON.stringify([{
-    id: 'offer-1', productId: 'p1', title: '普通鞋基础洗护', priceCents: 1990, regularPriceCents: 3990,
-    shoeTypes: ['运动鞋'], serviceAreas: ['钟山区主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
-    evidenceRefs: [{ id: 'e1', title: '洗护规则', sourceType: 'MERCHANT_RECORD', sourceUri: resolve(evidencePath), capturedAt: now, validUntil, sha256: evidenceSha256 }],
+    id: 'offer-1', productId: 'p1', title: '常规服务', priceCents: 1990, regularPriceCents: 3990,
+    shoeTypes: ['常规品类'], serviceAreas: ['主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
+    evidenceRefs: [{ id: 'e1', title: '服务规则', sourceType: 'MERCHANT_RECORD', sourceUri: resolve(evidencePath), capturedAt: now, validUntil, sha256: evidenceSha256 }],
   }], null, 2));
   writeFileSync(join(dataDir, 'knowledge.json'), '[]');
   writeFileSync(join(dataDir, 'sessions.json'), '[]');
@@ -64,7 +64,7 @@ test('backup: 备份-篡改-恢复闭环，数据与证据完整回归', async (
     const restoredEvidence = readFileSync(evidencePath);
     assert.equal(createHash('sha256').update(restoredEvidence).digest('hex'), evidenceSha256);
     const restoredOffers = JSON.parse(readFileSync(join(dataDir, 'offers.json'), 'utf8')) as Array<{ title: string }>;
-    assert.equal(restoredOffers[0]!.title, '普通鞋基础洗护');
+    assert.equal(restoredOffers[0]!.title, '常规服务');
     assert.equal(findRestoreBlockingState(dataDir), null);
   } finally {
     rmSync(root, { recursive: true, force: true });

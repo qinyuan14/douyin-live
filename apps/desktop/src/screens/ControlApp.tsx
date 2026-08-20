@@ -51,6 +51,7 @@ import { createLiveChannel } from '../broadcast.js';
 import { CatMark } from '../components/Icons.js';
 import { CheckIcon, StateBadge } from '../components/Status.js';
 import { selectCurrentOffer } from '../lib/offers.js';
+import { Onboarding } from './Onboarding.js';
 
 type Page = 'overview' | 'director' | 'qa' | 'orders' | 'preflight' | 'audit' | 'backups';
 type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null;
@@ -312,6 +313,11 @@ export function ControlApp() {
     );
   }
 
+  // 首次启动：未完成初始化向导前，先填写品牌/服务范围/类目（门禁保持 BLOCKED）
+  if (!data.config.onboardingCompleted) {
+    return <Onboarding onCompleted={() => void refresh()} />;
+  }
+
   const passedChecks = data.preflight.checks.filter((check) => check.status === 'PASS').length;
   const state = data.session?.state ?? 'PREFLIGHT_BLOCKED';
 
@@ -432,7 +438,7 @@ function pageSubtitle(page: Page): string {
     overview: '先确认人、设备和证据，再开始今晚的工作。',
     director: '两小时非循环流程；只有已批准段落能够播报。',
     qa: '白名单自动回答，高风险与未知问题必须交给员工。',
-    orders: '把付款追踪到取鞋、完成、成本和30天复购。',
+    orders: '把付款追踪到履约、完成、成本和30天复购。',
     preflight: '正式试播默认锁住；缺一项证据就不解锁。',
     audit: '所有配置、回答、状态和经营记录均可追溯。',
     backups: '经营数据与已保全证据的本地副本；恢复前先校验、自动留底。',
@@ -459,7 +465,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
           <div>
             <span className="shift-date">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</span>
             <h2>今晚 20:00–22:00</h2>
-            <p>一人洗护兼监护 · 真人不露脸 · 自然流量</p>
+            <p>一人作业兼监护 · 真人不露脸 · 自然流量</p>
           </div>
           <StateBadge state={session?.state ?? 'PREFLIGHT_BLOCKED'} />
         </div>
@@ -540,8 +546,8 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
       </aside>
 
       <section className="business-strip">
-        <Metric icon={ReceiptText} label="完成履约" value={`${data.report.completedOrders} / 30`} detail="已付款、已取鞋、已完成" />
-        <Metric icon={RefreshCw} label="30天正常价复购" value={`${data.report.repeatOrders} / 3`} detail="从首次完成洗护起计算" />
+        <Metric icon={ReceiptText} label="完成履约" value={`${data.report.completedOrders} / 30`} detail="已付款、已履约、已完成" />
+        <Metric icon={RefreshCw} label="30天正常价复购" value={`${data.report.repeatOrders} / 3`} detail="从首次完成履约起计算" />
         <Metric icon={WalletCards} label="批次贡献" value={formatMoney(data.report.contributionCents)} detail={data.report.contributionCents === null ? '有收入或成本尚未取得' : '已计入完整成本字段'} />
         <Metric icon={ShieldAlert} label="获客亏损超限" value={`${data.report.acquisitionLossBreaches + data.report.dailyLossPoolBreaches + data.report.monthlyLossPoolBreaches} 项`} detail="单笔10元、每日200元、每月3000元" />
       </section>
@@ -562,7 +568,7 @@ function Director({ segments, activeIndex, rehearsing, onSelect, onToggle }: {
 }) {
   const active = segments[activeIndex];
   const sceneLabels: Record<RunSheetSegment['scene'], string> = {
-    WORKBENCH: '真实洗护台', PROCESS_CLOSEUP: '工序特写', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '商品提示',
+    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序特写', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '商品提示',
   };
   return (
     <div className="director-layout">
@@ -576,7 +582,7 @@ function Director({ segments, activeIndex, rehearsing, onSelect, onToggle }: {
         </div>
         <div className="script-paper">
           <div className="script-meta">
-            <span>{active ? sceneLabels[active.scene] : '真实洗护台'}</span>
+            <span>{active ? sceneLabels[active.scene] : '真实作业台'}</span>
             <span>约 {active?.durationSeconds ?? 0} 秒</span>
             <span className={active?.approved ? 'approved' : 'blocked'}>{active?.approved ? '证据有效' : '禁止播报'}</span>
           </div>
@@ -622,7 +628,7 @@ function SafeQa({ knowledge, question, evaluation, working, onQuestion, onUse, o
     <div className="qa-layout">
       <section className="question-panel">
         <div className="panel-heading"><Headphones aria-hidden="true" /><div><h2>顾客刚刚问了什么？</h2><p>不要输入姓名、完整电话或订单号；系统仍会自动隐藏常见隐私。</p></div></div>
-        <textarea value={question} onChange={(event) => onQuestion(event.target.value)} maxLength={300} placeholder="例如：小白鞋多久能洗好？" />
+        <textarea value={question} onChange={(event) => onQuestion(event.target.value)} maxLength={300} placeholder="例如：这个服务多久能完成？" />
         <div className="question-actions"><span>{question.length}/300</span><button className="secondary-action" type="button" onClick={onEvaluate} disabled={working || !question.trim()}><ShieldCheck aria-hidden="true" />先判断风险</button></div>
 
         {evaluation && (
@@ -681,7 +687,7 @@ function Orders({ data, onSaved, onError }: {
     const linkedOffer = data.offers.find((offer) => offer.id === linkedSession.offerSnapshotId);
     if (!linkedOffer) return onError('所选直播场次缺少当时冻结的商品快照，不能记录经营结果。');
     if (!form.firstPaidAt) return onError('必须填写真实首单付款时间。');
-    if (form.completed && !form.pickedUpAt) return onError('已完成订单必须填写真实取鞋时间。');
+    if (form.completed && !form.pickedUpAt) return onError('已完成订单必须填写真实履约时间。');
     if (!costEvidence) return onError('请选择并保全本笔经营记录的结算或成本证据文件。');
     if (!form.newCustomerConfirmed || !newCustomerEvidence) return onError('必须人工核对平台历史订单，并保全已脱敏的新客核对证据。');
     if (!form.privacyConfirmed) return onError('请先确认两份证据文件均已移除姓名、电话、地址、头像、订单号和券码。');
@@ -786,8 +792,8 @@ function Orders({ data, onSaved, onError }: {
             <label className="wide evidence-file"><span>新客历史核对证据（必须脱敏）</span><input type="file" disabled={!form.privacyConfirmed || !form.newCustomerConfirmed} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void api.uploadEvidence(file, true).then(setNewCustomerEvidence).catch((error: unknown) => onError(error instanceof Error ? error.message : '新客证据保全失败')); }} /><small>{newCustomerEvidence ? `已保全 ${newCustomerEvidence.originalName} · 校验尾号 ${newCustomerEvidence.sha256.slice(-8)}` : '未选择新客核对证据，不计入候选新客'}</small></label>
             {fields.map(([key, label]) => <label key={key}><span>{label}（元）</span><input type="number" min="0" step="0.01" value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} placeholder="数据未取得" /></label>)}
             <label><span>真实首单付款时间</span><input type="datetime-local" value={form.firstPaidAt} onChange={(e) => setForm({ ...form, firstPaidAt: e.target.value })} /></label>
-            <label><span>真实取鞋时间</span><input type="datetime-local" value={form.pickedUpAt} onChange={(e) => setForm({ ...form, pickedUpAt: e.target.value })} /></label>
-            <label className="check-field"><input type="checkbox" checked={form.completed} onChange={(e) => setForm({ ...form, completed: e.target.checked })} /><span>已取鞋并完成洗护</span></label>
+            <label><span>真实履约时间</span><input type="datetime-local" value={form.pickedUpAt} onChange={(e) => setForm({ ...form, pickedUpAt: e.target.value })} /></label>
+            <label className="check-field"><input type="checkbox" checked={form.completed} onChange={(e) => setForm({ ...form, completed: e.target.checked })} /><span>已履约并完成服务</span></label>
             <label><span>实际完成时间</span><input type="datetime-local" value={form.completedAt} onChange={(e) => setForm({ ...form, completedAt: e.target.value })} disabled={!form.completed} /></label>
             <label className="check-field"><input type="checkbox" checked={form.refunded} onChange={(e) => setForm({ ...form, refunded: e.target.checked })} /><span>已经发生退款</span></label>
             <label><span>实际退款时间</span><input type="datetime-local" value={form.refundedAt} onChange={(e) => setForm({ ...form, refundedAt: e.target.value })} disabled={!form.refunded} /></label>
@@ -797,7 +803,7 @@ function Orders({ data, onSaved, onError }: {
           </div>
         )}
         <div className="ledger-table" role="table" aria-label="经营结果列表">
-          <div className="ledger-row ledger-header" role="row"><span>脱敏订单</span><span>付款</span><span>取鞋/完成</span><span>复购</span><span>数据口径</span></div>
+          <div className="ledger-row ledger-header" role="row"><span>脱敏订单</span><span>付款</span><span>履约/完成</span><span>复购</span><span>数据口径</span></div>
           {data.orders.length === 0 ? <div className="empty-row"><ReceiptText aria-hidden="true" />还没有经营结果记录</div> : data.orders.map((order) => (
             <div className="ledger-row" role="row" key={order.id}><span>{order.externalRefHash.slice(0, 10)}…</span><span>{formatTime(order.firstPaidAt)}</span><span>{order.completedAt ? '已完成' : '未完成'}</span><span>{order.repeatPaidAt ? '已复购' : '未取得'}</span><span>{order.firstNetSettlementCents === null ? '成本未齐' : '有结算记录'}</span></div>
           ))}
@@ -826,7 +832,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   onTransition: (state: LiveSession['state'], reason: string | null, confirmed?: boolean) => void;
 }) {
   const [showOffer, setShowOffer] = useState(false);
-  const [offer, setOffer] = useState({ productId: '', title: '新客普通鞋基础洗护｜1双', price: '9.90', regularPrice: '', merchantSource: '', merchantUri: '', merchantSha: '', officialTitle: '', officialUri: '', officialSha: '', costTitle: '', costUri: '', costSha: '', assetTitle: '', assetUri: '', assetSha: '' });
+  const [offer, setOffer] = useState({ productId: '', title: '新客常规服务｜1次', price: '9.90', regularPrice: '', merchantSource: '', merchantUri: '', merchantSha: '', officialTitle: '', officialUri: '', officialSha: '', costTitle: '', costUri: '', costSha: '', assetTitle: '', assetUri: '', assetSha: '' });
   const [saving, setSaving] = useState(false);
 
   async function saveOffer() {
@@ -839,7 +845,19 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       if (offer.officialTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.officialTitle.trim(), sourceType: 'OFFICIAL_WRITTEN', sourceUri: offer.officialUri.trim() || null, capturedAt, validUntil, sha256: offer.officialSha.trim() || null });
       if (offer.costTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.costTitle.trim(), sourceType: 'COST_RECORD', sourceUri: offer.costUri.trim() || null, capturedAt, validUntil, sha256: offer.costSha.trim() || null });
       if (offer.assetTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.assetTitle.trim(), sourceType: 'AUTHORIZED_ASSET', sourceUri: offer.assetUri.trim() || null, capturedAt, validUntil, sha256: offer.assetSha.trim() || null });
-      await api.saveOffer({ id: crypto.randomUUID(), productId: offer.productId.trim(), title: offer.title.trim(), priceCents: Math.round(Number(offer.price) * 100), regularPriceCents: offer.regularPrice.trim() ? Math.round(Number(offer.regularPrice) * 100) : null, shoeTypes: ['运动鞋', '小白鞋', '帆布鞋', '网面鞋'], serviceAreas: ['钟山区主城区', '水城区主城区'], evidenceRefs: refs, capturedAt, validUntil, status: 'ACTIVE' });
+      await api.saveOffer({
+        id: crypto.randomUUID(),
+        productId: offer.productId.trim(),
+        title: offer.title.trim(),
+        priceCents: Math.round(Number(offer.price) * 100),
+        regularPriceCents: offer.regularPrice.trim() ? Math.round(Number(offer.regularPrice) * 100) : null,
+        shoeTypes: data.config.productCategories.length > 0 ? data.config.productCategories : ['常规品类'],
+        serviceAreas: data.config.serviceAreas.length > 0 ? data.config.serviceAreas : [],
+        evidenceRefs: refs,
+        capturedAt,
+        validUntil,
+        status: 'ACTIVE',
+      });
       setShowOffer(false);
       await onOfferSaved();
     } catch (error) {

@@ -154,6 +154,13 @@ export type PreflightCheck = z.infer<typeof PreflightCheckSchema>;
 export const StoreConfigSchema = z.object({
   presenceIntervalMinutes: z.number(),
   maxMissedPresence: z.number(),
+  // 任务E·阶段2：商家通用配置（首次启动向导写入，输出屏/商品快照/话术读取）
+  storeName: z.string(),
+  tagline: z.string(),
+  serviceAreas: z.array(z.string()),
+  serviceAreasConfirmed: z.boolean(),
+  productCategories: z.array(z.string()),
+  onboardingCompleted: z.boolean(),
 });
 export type StoreConfig = z.infer<typeof StoreConfigSchema>;
 
