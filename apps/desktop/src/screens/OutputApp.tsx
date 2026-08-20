@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, CircleAlert, MapPin, RefreshCw, ShieldCheck, Sparkles, Volume2 } from 'lucide-react';
+import { Camera, CircleAlert, MapPin, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Volume2 } from 'lucide-react';
 import { api } from '../api.js';
 import { createLiveChannel, type LiveMessage } from '../broadcast.js';
 import { splitCaption } from '../lib/captions.js';
@@ -35,6 +35,7 @@ export function OutputApp() {
   const [serviceAreas, setServiceAreas] = useState<string[]>([]);
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
+  const [activated, setActivated] = useState(true);
   const [clock, setClock] = useState(new Date());
   const [speaking, setSpeaking] = useState(false);
   const qaSafe = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('qa') === 'safe';
@@ -64,6 +65,7 @@ export function OutputApp() {
       setServiceAreas(data.config.serviceAreas ?? []);
       setStoreName(data.config.storeName ?? '');
       setTagline(data.config.tagline ?? '');
+      setActivated(data.activation.activated);
     } catch {
       connectedRef.current = false;
       setServiceConnected(false);
@@ -262,6 +264,13 @@ export function OutputApp() {
 
   return (
     <main className={`broadcast-canvas ${qaSafe ? 'show-safe-zone' : ''}`}>
+      {!activated && (
+        <div className="broadcast-activation-block" role="alert">
+          <ShieldAlert aria-hidden="true" />
+          <strong>尚未激活</strong>
+          <span>请在控制台输入授权码后，直播输出功能才会解锁。</span>
+        </div>
+      )}
       <video ref={videoRef} className="broadcast-video" muted playsInline />
       {cameraStatus !== 'ready' && (
         <section className="camera-start" aria-label="摄像头设置">

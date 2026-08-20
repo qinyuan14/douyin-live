@@ -226,3 +226,25 @@ test('project data path resolves from the explicit installation root', () => {
     else process.env.LIVE_PROJECT_ROOT = previousRoot;
   }
 });
+
+test('fresh install reports unactivated and rejects a tampered license code', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'live-api-activation-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
+  const service = new LiveService();
+  try {
+    await service.onModuleInit();
+    const bootstrap = await service.bootstrap();
+    assert.equal(bootstrap.activation.activated, false);
+    assert.equal(typeof bootstrap.activation.machineId, 'string');
+    assert.ok(bootstrap.activation.machineId.length >= 16);
+    const rejected = await service.activate(`v1.${bootstrap.activation.machineId}.9999999999999.AAAA`);
+    assert.equal(rejected.activated, false);
+    assert.equal(rejected.reason, '授权码签名无效');
+  } finally {
+    await service.onModuleDestroy();
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
+    await rm(root, { recursive: true, force: true });
+  }
+});

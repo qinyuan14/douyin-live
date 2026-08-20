@@ -380,3 +380,20 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* 任务E·阶段2/3：首次启动向导与激活门禁 */
+.onboarding-shell .workspace { padding: 24px 32px 48px; }
+.onboarding-shell .offer-form textarea { min-height: 76px; resize: vertical; }
+.onboarding-shell .check-field { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--ink, #22313a); line-height: 1.6; }
+.onboarding-shell .check-field input { margin-top: 3px; }
+.onboarding-shell input[readonly] { background: #f2f4f6; color: #4b5a63; }
+
+/* 输出屏未激活遮罩 */
+.broadcast-activation-block {
+  position: absolute; inset: 0; z-index: 40;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(16, 25, 34, .92); color: #f7fafb; text-align: center; padding: 40px;
+}
+.broadcast-activation-block svg { width: 34px; color: #eab35d; }
+.broadcast-activation-block strong { font-size: 17px; }
+.broadcast-activation-block span { color: #afbec8; font-size: 12px; max-width: 420px; line-height: 1.6; }

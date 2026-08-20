@@ -51,6 +51,7 @@ import { createLiveChannel } from '../broadcast.js';
 import { CatMark } from '../components/Icons.js';
 import { CheckIcon, StateBadge } from '../components/Status.js';
 import { selectCurrentOffer } from '../lib/offers.js';
+import { ActivationGate } from './ActivationGate.js';
 import { Onboarding } from './Onboarding.js';
 
 type Page = 'overview' | 'director' | 'qa' | 'orders' | 'preflight' | 'audit' | 'backups';
@@ -311,6 +312,11 @@ export function ControlApp() {
         <span>只连接本机服务，不访问抖音账号</span>
       </main>
     );
+  }
+
+  // 未激活：先完成离线授权（授权码绑机器码，防复制传播）
+  if (!data.activation.activated) {
+    return <ActivationGate machineId={data.activation.machineId} onActivated={() => void refresh()} />;
   }
 
   // 首次启动：未完成初始化向导前，先填写品牌/服务范围/类目（门禁保持 BLOCKED）

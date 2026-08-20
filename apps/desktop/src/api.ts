@@ -42,6 +42,14 @@ export interface PreflightResult {
   formalTrialUnlocked: boolean;
 }
 
+export interface ActivationState {
+  activated: boolean;
+  machineId: string;
+  licenseCode: string | null;
+  expiresAt: number | null;
+  reason: string | null;
+}
+
 export interface BootstrapData {
   config: StoreConfig;
   offers: OfferSnapshot[];
@@ -62,6 +70,7 @@ export interface BootstrapData {
     takeoverReady: boolean;
   };
   runtimeUnsafeReason: string | null;
+  activation: ActivationState;
 }
 
 export interface StoredEvidenceFile {
@@ -113,6 +122,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<BootstrapData>('/bootstrap'),
+  getActivation: () => request<ActivationState>('/activation'),
+  activate: (code: string) => request<ActivationState>('/activation', { method: 'POST', body: JSON.stringify({ code }) }),
   saveConfig: (input: Partial<StoreConfig>) => request<StoreConfig>('/config', { method: 'PUT', body: JSON.stringify(input) }),
   saveOffer: (input: OfferSnapshot) => request<OfferSnapshot>('/offers', { method: 'POST', body: JSON.stringify(input) }),
   saveKnowledge: (input: KnowledgeItem) => request<KnowledgeItem>('/knowledge', { method: 'POST', body: JSON.stringify(input) }),

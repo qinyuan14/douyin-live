@@ -13,6 +13,7 @@ import {
 } from '@liveops/live-contracts';
 import {
   LiveDatabase,
+  activateWithCode,
   assertTransition,
   buildPreflightChecks,
   calculateCohortReport,
@@ -23,6 +24,7 @@ import {
   inspectLocalBackup,
   isSafeBackupName,
   listLocalBackups,
+  readActivation,
   redactPersonalData,
   restoreLocalBackup,
 } from '@liveops/live-core';
@@ -130,7 +132,16 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       runSheet: buildRunSheet(await this.verifiedApprovedKnowledge(knowledge), activeOffer, new Date(), () => true, config),
       hardware: this.hardware,
       runtimeUnsafeReason: this.runtimeUnsafeReason,
+      activation: readActivation(this.database.dataDir),
     };
+  }
+
+  getActivation() {
+    return readActivation(this.database.dataDir);
+  }
+
+  activate(code: string) {
+    return activateWithCode(this.database.dataDir, code);
   }
 
   getConfig() {

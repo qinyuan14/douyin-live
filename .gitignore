@@ -18,3 +18,6 @@ _tmp_*
 
 # 打包备份/中间产物
 release-bak*/
+
+# 离线授权卖家私钥（严禁提交，丢失/泄露需重新生成密钥对）
+scripts/license/keys/vendor-private.pem

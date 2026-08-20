@@ -34,4 +34,15 @@ export type {
   BackupSummary,
   RestoreResult,
 } from './backup.js';
+export {
+  LICENSE_PUBLIC_KEY,
+  LICENSE_VERSION,
+  activateWithCode,
+  activationFilePath,
+  deriveMachineId,
+  parseLicenseCode,
+  readActivation,
+  verifyLicenseCode,
+} from './activation.js';
+export type { ActivationRecord, ActivationState } from './activation.js';
 

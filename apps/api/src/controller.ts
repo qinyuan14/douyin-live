@@ -114,6 +114,21 @@ export class AppController {
     }
   }
 
+  @Get('/activation')
+  getActivation() {
+    return this.live.getActivation();
+  }
+
+  @Post('/activation')
+  async activate(@Body() body: unknown) {
+    try {
+      const parsed = z.object({ code: z.string().min(1).max(500) }).parse(body);
+      return await this.live.activate(parsed.code);
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
   @Get('/preflight')
   preflight() {
     return this.live.preflight();
