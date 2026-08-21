@@ -28,8 +28,10 @@ const pnpmBin = process.env.LIVE_PNPM_BIN;
 
 function run(command, args, options = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`);
-  // Windows 下 execFileSync 需要 shell 才能解析 npx/pnpm 这类 .cmd 命令（PATHEXT 查找）
-  execFileSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32', ...options });
+  // Windows 下 execFileSync 需要 shell 才能解析 npx/pnpm 这类 .cmd 命令（PATHEXT 查找）；
+  // shell 拼接模式下含空格的可执行路径（如 C:\Program Files\nodejs\node.exe）必须加引号
+  const cmd = process.platform === 'win32' && /[ "]/.test(command) && !/^"/.test(command) ? `"${command}"` : command;
+  execFileSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32', ...options });
 }
 
 function pnpm(args, options = {}) {
