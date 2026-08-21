@@ -1126,10 +1126,23 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   const [showOffer, setShowOffer] = useState(false);
   const [offer, setOffer] = useState({ productId: '', title: '新客常规服务｜1次', price: '9.90', regularPrice: '', offerConfirmed: false, costConfirmed: false, assetConfirmed: false });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function saveOffer() {
-    if (!offer.productId.trim() || !offer.title.trim() || !offer.price.trim()) return onError('商品ID、商品标题和价格必须填写。');
-    if (!offer.offerConfirmed || !offer.costConfirmed || !offer.assetConfirmed) return onError('请先勾选三项自查确认：商品真实、按真实成本经营、素材自有或已授权。');
+    // 商品ID 为选填；标题与价格必填；三项自查确认必勾
+    if (!offer.title.trim() || !offer.price.trim()) {
+      const message = '请填写商品标题和价格。';
+      setFormError(message);
+      onError(message);
+      return;
+    }
+    if (!offer.offerConfirmed || !offer.costConfirmed || !offer.assetConfirmed) {
+      const message = '请先勾选下方的三项自查确认，才能保存商品快照。';
+      setFormError(message);
+      onError(message);
+      return;
+    }
+    setFormError(null);
     setSaving(true);
     try {
       const capturedAt = new Date().toISOString();
@@ -1156,7 +1169,9 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       setShowOffer(false);
       await onOfferSaved();
     } catch (error) {
-      onError(error instanceof Error ? error.message : '商品快照保存失败');
+      const message = error instanceof Error ? error.message : '商品快照保存失败';
+      setFormError(message);
+      onError(message);
     } finally {
       setSaving(false);
     }
@@ -1167,7 +1182,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
     <div className="preflight-layout">
       <section className="gate-summary">
         <div className="gate-lock"><ShieldAlert aria-hidden="true" /><div><strong>正式开播保持锁定</strong><p>要真正开播，必须逐项完成下面的准备。当前只能进行本地演练和直播伴侣预览，不能声称已经获得真实开播许可。</p></div></div>
-        <div className="gate-actions"><button className="secondary-action" type="button" onClick={onRefresh}><RefreshCw aria-hidden="true" />重新检查</button><button className="primary-action" type="button" onClick={() => setShowOffer((value) => !value)}><ShoppingBag aria-hidden="true" />{showOffer ? '收起商品导入' : activeOffer ? '更新商品快照' : '导入商品快照'}</button></div>
+        <div className="gate-actions"><button className="secondary-action" type="button" onClick={onRefresh}><RefreshCw aria-hidden="true" />重新检查</button><button className="primary-action" type="button" onClick={() => { setFormError(null); setShowOffer((value) => !value); }}><ShoppingBag aria-hidden="true" />{showOffer ? '收起商品导入' : activeOffer ? '更新商品快照' : '导入商品快照'}</button></div>
       </section>
 
       {showOffer && (
@@ -1182,6 +1197,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
             <label className="check-field wide"><input type="checkbox" checked={offer.offerConfirmed} onChange={(e) => setOffer({ ...offer, offerConfirmed: e.target.checked })} /><span>我确认：这个商品真实存在、价格与店内一致（AI 会照着这个价格播报）</span></label>
             <label className="check-field wide"><input type="checkbox" checked={offer.costConfirmed} onChange={(e) => setOffer({ ...offer, costConfirmed: e.target.checked })} /><span>我确认：售价按真实成本经营，不构成超低价</span></label>
             <label className="check-field wide"><input type="checkbox" checked={offer.assetConfirmed} onChange={(e) => setOffer({ ...offer, assetConfirmed: e.target.checked })} /><span>我确认：直播画面用到的图片/视频/音乐/语音都是自有拍摄或已获授权</span></label>
+            {formError && <p className="evidence-error wide" role="alert">✗ {formError}</p>}
             <div className="form-actions wide"><button className="secondary-action" type="button" onClick={() => setShowOffer(false)}>取消</button><button className="primary-action" type="button" disabled={saving} onClick={() => void saveOffer()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存7天有效快照</button></div>
           </div>
         </section>

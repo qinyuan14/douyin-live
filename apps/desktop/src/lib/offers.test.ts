@@ -16,3 +16,10 @@ test('an expired active offer is never selected for the broadcast output', () =>
   assert.equal(selectCurrentOffer([{ ...base, validUntil: now.toISOString() }], now), null);
   assert.equal(selectCurrentOffer([base], now)?.priceCents, 990);
 });
+
+test('the newest active offer wins when multiple snapshots exist', () => {
+  const older = { ...base, id: 'older', priceCents: 990, validUntil: '2026-08-15T00:00:00.000Z' };
+  const newer = { ...base, id: 'newer', priceCents: 1290, validUntil: '2026-08-18T00:00:00.000Z' };
+  // 新商品即使排在列表末尾也要被选中（按有效期取最新，而不是列表顺序）
+  assert.equal(selectCurrentOffer([older, newer], now)?.priceCents, 1290);
+});
