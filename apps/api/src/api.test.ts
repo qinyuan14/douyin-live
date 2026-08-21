@@ -81,7 +81,9 @@ test('only registered privacy-confirmed evidence can back a displayed offer', as
     await service.saveOffer(offer);
     assert.equal((await service.bootstrap()).offers.some((offer) => offer.status === 'ACTIVE'), true);
     await service.createSession();
-    await assert.rejects(() => service.saveOffer({ ...offer, priceCents: 1_090 }), /活动场次/);
+    // v9.1：开播前（DRAFT 场次）允许更新商品快照，仅在真实直播中（LIVE/PAUSED）冻结
+    await service.saveOffer({ ...offer, priceCents: 1_090 });
+    assert.equal((await service.bootstrap()).offers.some((item) => item.priceCents === 1_090 && item.status === 'ACTIVE'), true);
     writeFileSync(saved.sourceUri, '证据已被改写');
     assert.equal((await service.bootstrap()).offers.some((item) => item.status === 'ACTIVE'), false);
   } finally {

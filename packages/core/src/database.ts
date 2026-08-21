@@ -221,13 +221,16 @@ export class LiveDatabase {
     return Promise.resolve([...this.state.offers]);
   }
 
-  private hasActiveSession(): boolean {
-    return this.state.sessions.some((session) => ACTIVE_SESSION_STATES.has(session.state));
+  /** 是否正在真实直播（LIVE/PAUSED）：此时商品快照必须冻结，禁止修改 */
+  private hasLiveSession(): boolean {
+    return this.state.sessions.some((session) => session.state === 'LIVE' || session.state === 'PAUSED');
   }
 
   async saveOffer(offer: OfferSnapshot): Promise<OfferSnapshot> {
-    if (this.hasActiveSession()) {
-      throw new Error('当前已有活动场次，不能修改商品快照');
+    // v9.1：仅真实直播中（LIVE/PAUSED）冻结商品快照；开播前的 DRAFT/PREFLIGHT_BLOCKED/READY
+    // 允许保存/更新商品（一键开播自动建场次后仍可补齐商品信息）
+    if (this.hasLiveSession()) {
+      throw new Error('当前正在直播，不能修改商品快照');
     }
     if (offer.evidenceRefs.length > 0 && !this.allEvidenceIsRegisteredSync(offer.evidenceRefs)) {
       throw new Error('商品快照引用的证据未保全，仅已保全证据可支撑展示商品');

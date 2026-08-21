@@ -331,7 +331,12 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       const preflight = await this.preflight();
       if (preflight.blocked || preflight.manualRequired) throw new Error('试播门禁未全部通过，不能标记为直播中');
       const currentOffer = await this.database.getActiveOffer();
-      if (!currentOffer || session.offerSnapshotId !== currentOffer.id) {
+      // v9.1：场次可能先建后补商品（offerSnapshotId 为 null），开播时允许绑定当前有效商品；
+      // 已绑定过商品的场次必须与当前有效商品一致（防开播后改价播报不一致）。
+      if (!currentOffer) {
+        throw new Error('尚未冻结开播商品快照，不能开播');
+      }
+      if (session.offerSnapshotId !== null && session.offerSnapshotId !== currentOffer.id) {
         throw new Error('场次绑定商品与当前有效商品不一致，请安全结束场次后重新建立');
       }
     }
