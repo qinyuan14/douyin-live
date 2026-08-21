@@ -51,7 +51,8 @@ interface DatabaseState {
 const ACTIVE_SESSION_STATES = new Set(['DRAFT', 'PREFLIGHT_BLOCKED', 'READY', 'LIVE', 'PAUSED']);
 
 const DEFAULT_CONFIG: StoreConfig = {
-  presenceIntervalMinutes: 5,
+  // 流程精简（批次2）：在场确认间隔由 5 分钟放宽到 15 分钟，减少直播中打扰
+  presenceIntervalMinutes: 15,
   maxMissedPresence: 2,
   storeName: '',
   tagline: '',
@@ -96,9 +97,15 @@ export class LiveDatabase {
   }
 
   private async load(): Promise<void> {
+    // 旧配置迁移（批次2）：早期版本默认在场间隔 5 分钟，从未显式改过的旧数据
+    // 会通过 DEFAULT_CONFIG 合并拿到 15 分钟；用户显式设置过的值保持不变。
+    const rawConfig = this.readJson<StoreConfig>('config', DEFAULT_CONFIG);
+    if (typeof rawConfig.presenceIntervalMinutes === 'number' && rawConfig.presenceIntervalMinutes === 5 && this.configWasNeverTouched()) {
+      rawConfig.presenceIntervalMinutes = 15;
+    }
     this.state = {
       // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段
-      config: { ...DEFAULT_CONFIG, ...this.readJson<StoreConfig>('config', DEFAULT_CONFIG) },
+      config: { ...DEFAULT_CONFIG, ...rawConfig },
       offers: this.readJson<OfferSnapshot[]>('offers', []),
       knowledge: this.readJson<KnowledgeItem[]>('knowledge', []),
       sessions: this.readJson<LiveSession[]>('sessions', []),
@@ -107,6 +114,18 @@ export class LiveDatabase {
       audit: this.readJson<AuditEntry[]>('audit', []),
       evidence: this.readJson<Record<string, EvidenceMeta>>('evidence', {}),
     };
+  }
+
+  /** 旧配置迁移辅助：仅当配置文件缺失（全新安装）或从未写入过 presenceIntervalMinutes 时视为"未显式设置" */
+  private configWasNeverTouched(): boolean {
+    const path = this.filePath('config');
+    if (!existsSync(path)) return true;
+    try {
+      const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+      return !('presenceIntervalMinutes' in raw);
+    } catch {
+      return true;
+    }
   }
 
   private persist(): void {

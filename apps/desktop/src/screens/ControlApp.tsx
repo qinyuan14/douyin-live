@@ -602,7 +602,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
         <section className="rail-section presence-ticket">
           <div className="rail-title"><Activity aria-hidden="true" /><strong>员工在场</strong></div>
           <div className="presence-time">{session?.lastPresenceAt ? new Date(session.lastPresenceAt).toLocaleTimeString('zh-CN', { hour12: false }) : '尚未确认'}</div>
-          <p>每5分钟确认一次，连续两次未确认会暂停AI。</p>
+          <p>每15分钟确认一次，连续两次未确认会暂停AI。</p>
         </section>
       </aside>
 
@@ -626,7 +626,7 @@ interface TaskItem {
   page: Page;
 }
 
-/** 首页「开播任务」清单：从 0 到开播的 6 件事，每件写明怎么做、做到哪、点哪进入 */
+/** 首页「开播任务」清单：从 0 到开播的 5 件事，每件写明怎么做、做到哪、点哪进入 */
 function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): TaskItem[] {
   const statusById = new Map(data.preflight.checks.map((check) => [check.id, check.status]));
   const evidenceDone = ['official-written', 'cost', 'asset'].every((id) => statusById.get(id) === 'PASS');
@@ -643,30 +643,26 @@ function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): Tas
       page: 'overview',
     },
     {
+      // 流程精简（批次2）：录入商品与补齐三份材料合并为一项，一次在「开播准备」里做完
       id: 'offer',
-      label: '录入你的商品',
-      how: activeOffer ? `已冻结商品快照：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）` : '到「开播准备」导入商品快照：填商品ID、价格，上传商户商品来源证据',
-      status: activeOffer ? 'done' : 'todo',
+      label: '录入你的商品与材料',
+      how: activeOffer && evidenceDone
+        ? `已就绪：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）与三份材料`
+        : '到「开播准备」导入商品快照（填商品ID、价格、传商户来源），并把三份材料（书面答复、成本、素材）一起传上',
+      status: activeOffer && evidenceDone ? 'done' : 'todo',
       page: 'preflight',
     },
     {
       id: 'hardware',
       label: '确认本机设备',
-      how: hardwareDone ? '摄像头（不露脸）、中文语音、真人接管都已确认' : '打开直播输出窗口：选俯拍摄像头不露脸、试听中文语音、确认真人声音可接管',
+      how: hardwareDone ? '摄像头（不露脸）、中文语音、真人接管都已确认' : '点「打开直播输出窗口」：选俯拍摄像头不露脸、试听中文语音、确认真人声音可接管',
       status: hardwareDone ? 'done' : 'todo',
-      page: 'preflight',
-    },
-    {
-      id: 'evidence',
-      label: '补齐开播证据',
-      how: evidenceDone ? '平台书面答复、成本记录、素材授权三份证据已齐全' : '需要三份材料：平台规则书面答复、完整成本记录、素材授权，在「开播准备」导入商品快照时上传',
-      status: evidenceDone ? 'done' : 'todo',
       page: 'preflight',
     },
     {
       id: 'rehearsal',
       label: '本地演练一遍',
-      how: rehearsalReady ? '在「直播流程」点「开始演练」，AI 按两小时流程播报，检查声音和字幕' : '需要先完成商品与证据准备，流程话术就绪后即可演练',
+      how: rehearsalReady ? '在「直播流程」点「开始演练」，AI 按两小时流程播报，检查声音和字幕' : '需要先完成商品与材料准备，流程话术就绪后即可演练',
       status: rehearsalReady ? 'ready' : 'blocked',
       page: 'director',
     },
@@ -692,12 +688,11 @@ function GuideModal({ onClose, onStart }: { onClose: () => void; onStart: (page:
     <div className="guide-overlay" onClick={onClose}>
       <div className="guide-modal" onClick={(event) => event.stopPropagation()}>
         <h2>欢迎使用实景直播经营系统</h2>
-        <p>这套工具帮你把「真实工作台」直播出去：AI 主持播报、真人监护、问答有把关。从 0 到开播，跟着 6 步走：</p>
+        <p>这套工具帮你把「真实工作台」直播出去：AI 主持播报、真人监护、问答有把关。从 0 到开播，跟着 5 步走：</p>
         <ol className="guide-steps">
           <li><b>填写店铺信息</b><span>品牌名、服务范围、商品类目（你已完成）</span></li>
-          <li><b>录入你的商品</b><span>在「开播准备」导入商品快照，填价格并上传来源证据</span></li>
+          <li><b>录入你的商品与材料</b><span>在「开播准备」导入商品快照，三份材料（书面答复、成本、素材）一起传上</span></li>
           <li><b>确认本机设备</b><span>摄像头画面不露脸、中文语音能听见、真人声音可接管</span></li>
-          <li><b>补齐开播证据</b><span>平台规则书面答复、完整成本、素材授权三份材料</span></li>
           <li><b>本地演练一遍</b><span>在「直播流程」试听 AI 两小时播报，检查声音和字幕</span></li>
           <li><b>正式开播</b><span>全部准备完成后，再上抖音直播伴侣人工开播</span></li>
         </ol>
@@ -974,14 +969,14 @@ function Progress({ label, value, goal }: { label: string; value: number; goal: 
   return <div className="progress-row"><div><strong>{label}</strong><span>{value} / {goal}</span></div><div className="progress-track"><i style={{ width: `${ratio}%` }} /></div></div>;
 }
 
-/** 每项开播准备「怎么解决」的大白话指引（客户看得懂的步骤） */
+/** 每项开播准备「怎么解决」的一句话说清（客户看得懂的步骤） */
 const GATE_TIPS: Record<string, string> = {
-  'official-written': '向抖音官方客服要一份书面答复（确认你的到店/上门取送口径、商品命名等），把答复截图保存 → 点上面「导入商品快照」，在「平台规则书面答复」里上传。',
-  'service-area': '已在首次启动时填写并确认了服务范围；如要修改，重新填写初始化信息即可。',
-  cost: '整理平台结算明细和完整成本（人工、耗材、值守、返工、售后等），先脱敏 → 点上面「导入商品快照」，在「完整成本记录」里上传。',
-  hardware: '打开直播输出窗口：① 选择俯拍摄像头，确认画面不露脸；② 点下方「中文语音·开始试听」，确认输出能听见；③ 确认真人声音可以随时接管。',
-  asset: '准备素材授权证明（图片/视频/音乐/语音的使用权）和 AI 标识说明 → 点上面「导入商品快照」，在「素材权利证明」里上传。',
-  authorization: '真正开播时：先在抖音直播伴侣里人工开始直播，再回到本页下方「场次安全控制」，点「我已在直播伴侣人工开播」。',
+  'official-written': '向抖音官方客服要书面答复截图，在下面「平台规则书面答复」上传。',
+  'service-area': '已在首次启动时确认；要修改需重新填写初始化信息。',
+  cost: '把完整成本清单（人工/耗材/值守等）脱敏后，在「完整成本记录」上传。',
+  hardware: '点「打开直播输出窗口」：①选俯拍不露脸 ②试听中文语音 ③确认真人可接管。',
+  asset: '把素材授权凭证截图，在「素材权利证明」上传。',
+  authorization: '在抖音直播伴侣人工开播后，点下方「我已在直播伴侣人工开播」。',
 };
 
 function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onError, onTransition }: {
@@ -998,6 +993,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   onTransition: (state: LiveSession['state'], reason: string | null, confirmed?: boolean) => void;
 }) {
   const [showOffer, setShowOffer] = useState(false);
+  const [evidencePrivacy, setEvidencePrivacy] = useState(false);
   const [offer, setOffer] = useState({ productId: '', title: '新客常规服务｜1次', price: '9.90', regularPrice: '', merchantSource: '', merchantUri: '', merchantSha: '', officialTitle: '', officialUri: '', officialSha: '', costTitle: '', costUri: '', costSha: '', assetTitle: '', assetUri: '', assetSha: '' });
   const [saving, setSaving] = useState(false);
 
@@ -1044,16 +1040,17 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       {showOffer && (
         <section className="offer-form-section">
           <div className="panel-heading"><PackageCheck aria-hidden="true" /><div><h2>冻结开播商品</h2><p>本工具只保存快照，不会向抖音修改商品。官方、成本和素材证据为空时会继续阻断。</p></div></div>
-          <p className="evidence-intro">下面的每一份材料都只需两步：<b>填一个标题</b> + <b>选一个文件</b>。文件由程序自动复制到本机证据库并计算校验值，之后随时能核对来源。<b>支持格式：PNG / JPG / PDF / TXT / JSON</b>。上传前请确认文件里不含姓名、电话、地址、头像、订单号、券码或聊天账号（勾选脱敏确认后才能选文件）。</p>
+          <p className="evidence-intro">在这里一次性做完「商品 + 三份材料」：填商品信息、传商户来源文件，再把三份材料（书面答复、成本、素材）一起传上。每份材料只需 <b>选一个文件</b>（标题可空，自动用文件名），文件由程序自动复制到本机证据库并计算校验值。<b>支持格式：PNG / JPG / PDF / TXT / JSON</b>。</p>
+          <label className="check-field evidence-global-check"><input type="checkbox" checked={evidencePrivacy} onChange={(event) => setEvidencePrivacy(event.target.checked)} /><span>我已逐份核对：下面所有上传文件都不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
           <div className="offer-form">
             <label><span>商品ID</span><input value={offer.productId} onChange={(e) => setOffer({ ...offer, productId: e.target.value })} /></label>
             <label className="wide"><span>商品标题</span><input value={offer.title} onChange={(e) => setOffer({ ...offer, title: e.target.value })} /></label>
             <label><span>新客成交价（元）</span><input type="number" min="0.01" step="0.01" value={offer.price} onChange={(e) => setOffer({ ...offer, price: e.target.value })} /></label>
             <label><span>正常价（元，可空）</span><input type="number" min="0.01" step="0.01" value={offer.regularPrice} onChange={(e) => setOffer({ ...offer, regularPrice: e.target.value })} placeholder="从有效商品导入" /></label>
-            <EvidenceInputs title="商户商品来源（必填并上传文件）" help="是什么：证明「这个商品确实存在、是你店铺里在卖的」。去哪拿：抖音后台 → 小店/商品管理 → 找到这个商品页，截图时带上商品ID和店铺名。上传格式：截图 PNG/JPG，或导出的 txt/json。" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="平台规则书面答复" help="是什么：抖音官方客服对你开播口径的书面答复（比如到店/上门取送怎么描述、商品怎么命名）。去哪拿：在抖音商家客服/在线客服里提问，把客服答复页面截图保存。上传格式：截图 PNG/JPG 或 PDF。" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="完整成本记录" help="是什么：这份商品从接单到履约的全部成本清单（材料、人工、耗材、值守、返工、售后）。去哪拿：按你实际经营自己整理成一张表。上传格式：表格截图 PNG/JPG，或 PDF/txt，务必先脱敏。" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="素材权利证明" help="是什么：直播画面用到的图片/视频/音乐/语音素材的使用授权（购买记录、授权书，或自己原创的说明）。去哪拿：素材购买凭证或授权文件。上传格式：截图 PNG/JPG 或 PDF。" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="商户商品来源（必填并上传文件）" help="是什么：证明「这个商品确实存在、是你店铺里在卖的」。去哪拿：抖音后台 → 小店/商品管理 → 找到这个商品页，截图时带上商品ID和店铺名。上传格式：截图 PNG/JPG，或导出的 txt/json。" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
+            <EvidenceInputs title="平台规则书面答复" help="是什么：抖音官方客服对你开播口径的书面答复（比如到店/上门取送怎么描述、商品怎么命名）。去哪拿：在抖音商家客服/在线客服里提问，把客服答复页面截图保存。上传格式：截图 PNG/JPG 或 PDF。" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
+            <EvidenceInputs title="完整成本记录" help="是什么：这份商品从接单到履约的全部成本清单（材料、人工、耗材、值守、返工、售后）。去哪拿：按你实际经营自己整理成一张表。上传格式：表格截图 PNG/JPG，或 PDF/txt。" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
+            <EvidenceInputs title="素材权利证明" help="是什么：直播画面用到的图片/视频/音乐/语音素材的使用授权（购买记录、授权书，或自己原创的说明）。去哪拿：素材购买凭证或授权文件。上传格式：截图 PNG/JPG 或 PDF。" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
             <div className="form-actions wide"><button className="secondary-action" type="button" onClick={() => setShowOffer(false)}>取消</button><button className="primary-action" type="button" disabled={saving} onClick={() => void saveOffer()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存7天有效快照</button></div>
           </div>
         </section>
@@ -1076,7 +1073,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       </section>
 
       <section className="hardware-confirm">
-        <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>本机预览确认</h2><p>这些确认只代表本机预览，不代表抖音开播授权。</p></div></div>
+        <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>本机预览确认</h2><p>这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
         <div className="hardware-buttons">
           <button className={data.hardware.cameraReady ? 'confirmed' : ''} type="button" disabled><Camera />{data.hardware.cameraReady ? `俯拍已确认：${data.hardware.cameraLabel ?? '专用设备'}` : '请在直播输出窗口选择设备并确认无人脸'}</button>
           <button className={data.hardware.voiceReady ? 'confirmed' : ''} type="button" disabled={voiceTestPending} onClick={voiceTestGenerated && !data.hardware.voiceReady ? onVoiceConfirm : onVoiceTest}><Volume2 />中文语音{voiceTestPending ? '试听中' : data.hardware.voiceReady ? '员工已确认' : voiceTestGenerated ? '确认听见且线路正确' : '开始试听'}</button>
@@ -1100,8 +1097,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   );
 }
 
-function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void }) {
-  const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError, privacyConfirmed }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void; privacyConfirmed: boolean }) {
   const [askFirst, setAskFirst] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -1148,8 +1144,7 @@ function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, 
     <label><span>{title}</span><input value={String(value[name])} onChange={(e) => onChange({ ...value, [name]: e.target.value })} placeholder="证据标题；没有就保持空白" /></label>
     {help && <p className="evidence-help">{help}</p>}
     {uriName && shaName && <>
-      <label className="check-field"><input type="checkbox" checked={privacyConfirmed} onChange={(event) => { setPrivacyConfirmed(event.target.checked); if (event.target.checked) setAskFirst(false); }} /><span>已确认文件不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
-      {askFirst && <p className="evidence-ask" role="alert">⚠ 请先勾选上面的「脱敏确认」，然后点这里就能选择文件了。</p>}
+      {askFirst && <p className="evidence-ask" role="alert">⚠ 请先勾选表单顶部的「脱敏确认」，然后点这里就能选择文件了。</p>}
       {uploadError && <p className="evidence-error" role="alert">✗ 保全失败：{uploadError}</p>}
       <div className="evidence-file">
         <button type="button" className={uploading ? 'uploading' : stored ? 'confirmed' : privacyConfirmed ? '' : 'locked'} onClick={handlePickFile} disabled={uploading}>
@@ -1157,7 +1152,7 @@ function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, 
           {uploading ? '正在保全文件…' : stored ? '文件已保全' : privacyConfirmed ? '选择已脱敏的本机证据文件' : '选择文件（需先勾选脱敏确认）'}
         </button>
         <input ref={fileRef} type="file" style={{ display: 'none' }} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => void handleFileChange(event)} />
-        <small className={stored ? 'ok' : ''}>{stored ? `✓ 已保全到本机证据库 · 校验尾号 ${String(value[shaName]).slice(-8)}` : uploading ? '正在复制文件并计算校验值，请稍候…' : '选择文件后，程序会自动复制到本机证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small>
+        <small className={stored ? 'ok' : ''}>{stored ? `✓ 已保全到本机证据库 · 校验尾号 ${String(value[shaName]).slice(-8)}` : uploading ? '正在复制文件并计算校验值，请稍候…' : '选择文件后，程序会自动复制到本机证据库并计算校验值'}</small>
       </div>
     </>}
   </div>;

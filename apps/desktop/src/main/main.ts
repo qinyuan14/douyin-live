@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, screen, dialog } from 'electron';
+import { app, BrowserWindow, Menu, screen, dialog, ipcMain } from 'electron';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -163,6 +163,9 @@ function createWindows(): void {
     backgroundColor: '#101922',
     webPreferences: securedWebPreferences(),
   });
+  outputWindow.on('closed', () => {
+    outputWindow = null;
+  });
   void outputWindow.loadURL(rendererUrl('output'));
 
   const captureDir = process.env.LIVE_CAPTURE_DIR;
@@ -242,6 +245,15 @@ app.whenReady().then(async () => {
     }
   }
   createWindows();
+  // 流程精简（批次2）：值班台「设备状态卡片」一键跳转/唤起直播输出窗口
+  ipcMain.handle('focus-output-window', () => {
+    if (!outputWindow || outputWindow.isDestroyed()) {
+      createWindows();
+    }
+    outputWindow?.show();
+    outputWindow?.focus();
+    return true;
+  });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindows();
   });

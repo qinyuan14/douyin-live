@@ -3,5 +3,6 @@
 interface Window {
   liveDesktop?: {
     getLocalToken: () => string;
+    focusOutputWindow: () => Promise<boolean>;
   };
 }

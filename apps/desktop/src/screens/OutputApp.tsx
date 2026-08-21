@@ -179,6 +179,13 @@ export function OutputApp() {
     }
   }, [stopSpeech]);
 
+  // 流程精简（批次2）：输出窗挂载后自动扫描一次本机摄像头，省去手动点「扫描本机摄像头」
+  useEffect(() => {
+    void scanCameras();
+    // 仅挂载时执行一次；scanCameras 依赖的 state 在首次渲染后即已就绪
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function scanCameras() {
     setCameraStatus('scanning');
     try {
