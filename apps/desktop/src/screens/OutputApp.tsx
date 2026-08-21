@@ -259,7 +259,7 @@ export function OutputApp() {
   const live = state === 'LIVE';
   const paused = state === 'PAUSED';
   const sceneLabels: Record<string, string> = {
-    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序细节', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '当前商品',
+    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序细节', SERVICE_FACTS: '服务说明', Q_AND_A: '顾客问答', OFFER: '当前商品',
   };
 
   return (
@@ -268,7 +268,7 @@ export function OutputApp() {
         <div className="broadcast-activation-block" role="alert">
           <ShieldAlert aria-hidden="true" />
           <strong>尚未激活</strong>
-          <span>请在控制台输入授权码后，直播输出功能才会解锁。</span>
+          <span>请在控制台输入授权码后，画面和播报功能才能使用。</span>
         </div>
       )}
       <video ref={videoRef} className="broadcast-video" muted playsInline />

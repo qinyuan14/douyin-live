@@ -63,7 +63,7 @@ export function Onboarding({ onCompleted }: { onCompleted: () => Promise<void> |
         <header className="topbar">
           <div>
             <h1>首次启动 · 初始化你的直播间经营信息</h1>
-            <p>这些信息用于输出画面、商品快照与开播门禁校验，全部只保存在本机。</p>
+            <p>这些信息用于输出画面、商品快照与开播准备检查，全部只保存在本机。</p>
           </div>
         </header>
         <section className="offer-form-section">
@@ -83,7 +83,7 @@ export function Onboarding({ onCompleted }: { onCompleted: () => Promise<void> |
           </div>
         </section>
         <section className="offer-form-section">
-          <div className="panel-heading"><MapPin aria-hidden="true" /><div><h2>说明</h2><p>服务范围确认后，门禁「服务范围已确认且可执行」才会通过；服务范围外不会由 AI 自动承诺。商品类目用于新建商品快照时的默认类目。</p></div></div>
+          <div className="panel-heading"><MapPin aria-hidden="true" /><div><h2>说明</h2><p>服务范围确认后，开播准备里的「服务范围已确认且可执行」才会通过；服务范围外不会由 AI 自动承诺。商品类目用于新建商品快照时的默认类目。</p></div></div>
         </section>
       </main>
     </div>

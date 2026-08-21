@@ -57,13 +57,16 @@ import { Onboarding } from './Onboarding.js';
 type Page = 'overview' | 'director' | 'qa' | 'orders' | 'preflight' | 'audit' | 'backups';
 type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null;
 
+/** 新手引导「已看过」的本地标记（每台电脑记一次，可手动重新打开） */
+const GUIDE_SEEN_KEY = 'liveops-guide-seen-v1';
+
 const NAV_ITEMS: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }> = [
-  { id: 'overview', label: '今晚值班', icon: LayoutDashboard },
-  { id: 'director', label: 'AI 导演台', icon: Radio },
-  { id: 'qa', label: '安全问答', icon: ShieldCheck },
-  { id: 'orders', label: '经营闭环', icon: ReceiptText },
-  { id: 'preflight', label: '试播门禁', icon: ClipboardCheck },
-  { id: 'audit', label: '审计记录', icon: History },
+  { id: 'overview', label: '今日开播', icon: LayoutDashboard },
+  { id: 'director', label: '直播流程', icon: Radio },
+  { id: 'qa', label: '顾客问答', icon: ShieldCheck },
+  { id: 'orders', label: '经营记录', icon: ReceiptText },
+  { id: 'preflight', label: '开播准备', icon: ClipboardCheck },
+  { id: 'audit', label: '操作日志', icon: History },
   { id: 'backups', label: '数据备份', icon: DatabaseBackup },
 ];
 
@@ -77,7 +80,7 @@ function formatTime(value: string | null): string {
 
 function shortState(state: string): string {
   const labels: Record<string, string> = {
-    DRAFT: '草稿', PREFLIGHT_BLOCKED: '试播未解锁', READY: '本地就绪', LIVE: '直播中',
+    DRAFT: '草稿', PREFLIGHT_BLOCKED: '开播准备中', READY: '本地就绪', LIVE: '直播中',
     PAUSED: 'AI已暂停', STOPPED: '已停止', COMPLETED: '已完成',
   };
   return labels[state] ?? state;
@@ -98,6 +101,14 @@ export function ControlApp() {
   const [evaluation, setEvaluation] = useState<ResponseEvaluationResult | null>(null);
   const [voiceTestPending, setVoiceTestPending] = useState(false);
   const [voiceTestGenerated, setVoiceTestGenerated] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // 首次进入值班台（完成初始化向导后）弹出新手引导；关掉后记住，可随时从任务清单重新打开
+  useEffect(() => {
+    if (data?.config.onboardingCompleted && !window.localStorage.getItem(GUIDE_SEEN_KEY)) {
+      setShowGuide(true);
+    }
+  }, [data?.config.onboardingCompleted]);
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -133,7 +144,7 @@ export function ControlApp() {
       if (!message.generated) void api.updateHardware({ voiceReady: false }).then(() => refresh(true));
       setNotice(message.generated
         ? { tone: 'info', message: `系统已播放中文试听：${message.voiceName ?? '系统中文语音'}。请由值班员工确认确实听见且输出线路正确。` }
-        : { tone: 'error', message: '本机没有可用中文语音，AI播报门禁保持阻断。' });
+        : { tone: 'error', message: '本机没有可用中文语音，AI 播报暂时无法使用。' });
     };
     void refresh();
     const interval = window.setInterval(() => void refresh(true), 30_000);
@@ -146,7 +157,7 @@ export function ControlApp() {
 
   useEffect(() => {
     if (page === 'audit') void api.audit().then(setAudit).catch((error: unknown) => {
-      setNotice({ tone: 'error', message: error instanceof Error ? error.message : '审计记录读取失败' });
+      setNotice({ tone: 'error', message: error instanceof Error ? error.message : '操作日志读取失败' });
     });
   }, [page]);
 
@@ -210,7 +221,7 @@ export function ControlApp() {
     try {
       await api.createSession();
       await refresh(true);
-      setNotice({ tone: 'success', message: '今晚场次已建立；正式试播仍受证据门禁保护。' });
+      setNotice({ tone: 'success', message: '今晚场次已建立；正式开播前仍需完成开播准备。' });
     } catch (error) {
       setNotice({ tone: 'error', message: error instanceof Error ? error.message : '建立场次失败' });
     } finally {
@@ -277,7 +288,7 @@ export function ControlApp() {
     channelRef.current?.postMessage({ type: 'voice-test', id: crypto.randomUUID() });
     window.setTimeout(() => {
       setVoiceTestPending((pending) => {
-        if (pending) setNotice({ tone: 'error', message: '直播输出窗口没有返回语音试听结果，语音门禁保持阻断。' });
+        if (pending) setNotice({ tone: 'error', message: '直播输出窗口没有返回语音试听结果，请重试或检查输出窗口是否打开。' });
         return false;
       });
     }, 8_000);
@@ -375,6 +386,16 @@ export function ControlApp() {
           </div>
         )}
 
+        {showGuide && (
+          <GuideModal
+            onClose={() => {
+              window.localStorage.setItem(GUIDE_SEEN_KEY, '1');
+              setShowGuide(false);
+            }}
+            onStart={setPage}
+          />
+        )}
+
         <section className="page-body">
           {page === 'overview' && (
             <Overview
@@ -387,6 +408,7 @@ export function ControlApp() {
               onPresence={() => void acknowledgePresence()}
               onRehearsal={toggleRehearsal}
               onNavigate={setPage}
+              onShowGuide={() => setShowGuide(true)}
             />
           )}
           {page === 'director' && (
@@ -426,7 +448,7 @@ export function ControlApp() {
               voiceTestPending={voiceTestPending}
               voiceTestGenerated={voiceTestGenerated}
               onVoiceConfirm={() => void confirmVoiceHeard()}
-              onOfferSaved={async () => { await refresh(true); setNotice({ tone: 'success', message: '商品快照已保存；缺失证据仍会继续阻断正式试播。' }); }}
+              onOfferSaved={async () => { await refresh(true); setNotice({ tone: 'success', message: '商品快照已保存；开播准备没完成前仍不能正式开播。' }); }}
               onError={(message) => setNotice({ tone: 'error', message })}
               onTransition={(next, reason, confirmed) => void transition(next, reason, confirmed)}
             />
@@ -441,18 +463,18 @@ export function ControlApp() {
 
 function pageSubtitle(page: Page): string {
   const subtitles: Record<Page, string> = {
-    overview: '先确认人、设备和证据，再开始今晚的工作。',
-    director: '两小时非循环流程；只有已批准段落能够播报。',
-    qa: '白名单自动回答，高风险与未知问题必须交给员工。',
-    orders: '把付款追踪到履约、完成、成本和30天复购。',
-    preflight: '正式试播默认锁住；缺一项证据就不解锁。',
-    audit: '所有配置、回答、状态和经营记录均可追溯。',
-    backups: '经营数据与已保全证据的本地副本；恢复前先校验、自动留底。',
+    overview: '跟着「开播任务」一步一步来，做完一项打勾一项。',
+    director: '两小时直播流程；只有准备妥当的段落才能播报。',
+    qa: '顾客常见问题自动回答，拿不准的交给员工。',
+    orders: '记录每一笔订单从付款到履约、成本和复购。',
+    preflight: '正式开播前要完成的准备；缺一项就不能开播。',
+    audit: '所有操作和经营记录都能查得到。',
+    backups: '经营数据和证据的本地备份；恢复前先校验、自动留底。',
   };
   return subtitles[page];
 }
 
-function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCreate, onPresence, onRehearsal, onNavigate }: {
+function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCreate, onPresence, onRehearsal, onNavigate, onShowGuide }: {
   data: BootstrapData;
   activeOffer: OfferSnapshot | null;
   passedChecks: number;
@@ -462,10 +484,42 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
   onPresence: () => void;
   onRehearsal: () => void;
   onNavigate: (page: Page) => void;
+  onShowGuide: () => void;
 }) {
   const session = data.session;
+  const tasks = buildTasks(data, activeOffer);
+  const doneCount = tasks.filter((task) => task.status === 'done').length;
   return (
     <div className="overview-grid">
+      <section className="task-checklist">
+        <div className="task-heading">
+          <div>
+            <span className="task-kicker">开播任务 · 跟着做就不会迷路</span>
+            <h2>从 0 到开播，还有 {tasks.length - doneCount} 件事要做</h2>
+          </div>
+          <span className="task-count">{doneCount}/{tasks.length} 已完成</span>
+          <button type="button" className="task-guide-link" onClick={onShowGuide}>重新看引导</button>
+        </div>
+        <div className="task-list">
+          {tasks.map((task, index) => (
+            <button
+              type="button"
+              key={task.id}
+              className={`task-item ${task.status}`}
+              onClick={() => onNavigate(task.page)}
+            >
+              <span className="task-num">{String(index + 1).padStart(2, '0')}</span>
+              <span className="task-icon" aria-hidden="true">{task.status === 'done' ? <Check /> : task.status === 'blocked' ? <CircleAlert /> : <ChevronRight />}</span>
+              <span className="task-main">
+                <strong>{task.label}</strong>
+                <small>{task.how}</small>
+              </span>
+              <span className="task-state">{taskStateLabel(task)}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="shift-board">
         <div className="shift-heading">
           <div>
@@ -503,7 +557,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
           )}
           {(data.preflight.blocked || data.preflight.manualRequired) && (
             <button className="primary-action" type="button" onClick={() => onNavigate('preflight')}>
-              <ShieldCheck aria-hidden="true" />继续完成试播准备 {passedChecks}/{data.preflight.checks.length}
+              <ShieldCheck aria-hidden="true" />继续完成开播准备 {passedChecks}/{data.preflight.checks.length}
             </button>
           )}
           <button className={rehearsing ? 'danger-action' : 'secondary-action'} type="button" onClick={onRehearsal}>
@@ -516,7 +570,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
 
       <aside className="right-rail">
         <section className="rail-section">
-          <div className="rail-title"><ListChecks aria-hidden="true" /><strong>试播门禁</strong><span>{passedChecks}/{data.preflight.checks.length}</span></div>
+          <div className="rail-title"><ListChecks aria-hidden="true" /><strong>开播准备</strong><span>{passedChecks}/{data.preflight.checks.length}</span></div>
           <div className="compact-checks">
             {data.preflight.checks.slice(0, 5).map((check) => (
               <button type="button" key={check.id} onClick={() => onNavigate('preflight')}>
@@ -526,7 +580,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
               </button>
             ))}
           </div>
-          <button className="text-link" type="button" onClick={() => onNavigate('preflight')}>查看全部门禁</button>
+          <button className="text-link" type="button" onClick={() => onNavigate('preflight')}>查看全部开播准备</button>
         </section>
 
         <section className="rail-section offer-ticket">
@@ -561,6 +615,101 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
   );
 }
 
+type TaskStatus = 'done' | 'todo' | 'ready' | 'blocked';
+
+interface TaskItem {
+  id: string;
+  label: string;
+  how: string;
+  status: TaskStatus;
+  page: Page;
+}
+
+/** 首页「开播任务」清单：从 0 到开播的 6 件事，每件写明怎么做、做到哪、点哪进入 */
+function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): TaskItem[] {
+  const statusById = new Map(data.preflight.checks.map((check) => [check.id, check.status]));
+  const evidenceDone = ['official-written', 'cost', 'asset'].every((id) => statusById.get(id) === 'PASS');
+  const hardwareDone = data.hardware.cameraReady && data.hardware.voiceReady && data.hardware.takeoverReady;
+  const rehearsalReady = data.runSheet.some((segment) => segment.approved);
+  const canGoLive = !data.preflight.blocked && !data.preflight.manualRequired;
+
+  return [
+    {
+      id: 'store-info',
+      label: '填写店铺信息',
+      how: data.config.onboardingCompleted ? '已填写：品牌名、服务范围、商品类目' : '填写品牌名、服务范围与商品类目，用于输出画面与商品快照',
+      status: data.config.onboardingCompleted ? 'done' : 'todo',
+      page: 'overview',
+    },
+    {
+      id: 'offer',
+      label: '录入你的商品',
+      how: activeOffer ? `已冻结商品快照：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）` : '到「开播准备」导入商品快照：填商品ID、价格，上传商户商品来源证据',
+      status: activeOffer ? 'done' : 'todo',
+      page: 'preflight',
+    },
+    {
+      id: 'hardware',
+      label: '确认本机设备',
+      how: hardwareDone ? '摄像头（不露脸）、中文语音、真人接管都已确认' : '打开直播输出窗口：选俯拍摄像头不露脸、试听中文语音、确认真人声音可接管',
+      status: hardwareDone ? 'done' : 'todo',
+      page: 'preflight',
+    },
+    {
+      id: 'evidence',
+      label: '补齐开播证据',
+      how: evidenceDone ? '平台书面答复、成本记录、素材授权三份证据已齐全' : '需要三份材料：平台规则书面答复、完整成本记录、素材授权，在「开播准备」导入商品快照时上传',
+      status: evidenceDone ? 'done' : 'todo',
+      page: 'preflight',
+    },
+    {
+      id: 'rehearsal',
+      label: '本地演练一遍',
+      how: rehearsalReady ? '在「直播流程」点「开始演练」，AI 按两小时流程播报，检查声音和字幕' : '需要先完成商品与证据准备，流程话术就绪后即可演练',
+      status: rehearsalReady ? 'ready' : 'blocked',
+      page: 'director',
+    },
+    {
+      id: 'go-live',
+      label: '正式开播',
+      how: canGoLive ? '所有准备完成！在抖音直播伴侣人工开播后，回「开播准备」点「我已在直播伴侣人工开播」' : '前面准备全部完成后，这里才会解锁',
+      status: canGoLive ? 'ready' : 'blocked',
+      page: 'preflight',
+    },
+  ];
+}
+
+function taskStateLabel(task: TaskItem): string {
+  if (task.status === 'done') return '已完成';
+  if (task.status === 'ready') return '可以开始';
+  if (task.status === 'blocked') return '准备中';
+  return '待完成';
+}
+
+function GuideModal({ onClose, onStart }: { onClose: () => void; onStart: (page: Page) => void }) {
+  return (
+    <div className="guide-overlay" onClick={onClose}>
+      <div className="guide-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>欢迎使用实景直播经营系统</h2>
+        <p>这套工具帮你把「真实工作台」直播出去：AI 主持播报、真人监护、问答有把关。从 0 到开播，跟着 6 步走：</p>
+        <ol className="guide-steps">
+          <li><b>填写店铺信息</b><span>品牌名、服务范围、商品类目（你已完成）</span></li>
+          <li><b>录入你的商品</b><span>在「开播准备」导入商品快照，填价格并上传来源证据</span></li>
+          <li><b>确认本机设备</b><span>摄像头画面不露脸、中文语音能听见、真人声音可接管</span></li>
+          <li><b>补齐开播证据</b><span>平台规则书面答复、完整成本、素材授权三份材料</span></li>
+          <li><b>本地演练一遍</b><span>在「直播流程」试听 AI 两小时播报，检查声音和字幕</span></li>
+          <li><b>正式开播</b><span>全部准备完成后，再上抖音直播伴侣人工开播</span></li>
+        </ol>
+        <p className="guide-note">首页的「开播任务」清单会一直提醒你做到哪一步，做完自动打勾；看不懂随时点「重新看引导」。</p>
+        <div className="guide-actions">
+          <button className="primary-action" type="button" onClick={() => { onStart('preflight'); onClose(); }}>带我去看开播准备</button>
+          <button className="secondary-action" type="button" onClick={onClose}>先逛逛</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ icon: Icon, label, value, detail }: { icon: typeof ReceiptText; label: string; value: string; detail: string }) {
   return <div className="metric"><Icon aria-hidden="true" /><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
 }
@@ -574,7 +723,7 @@ function Director({ segments, activeIndex, rehearsing, onSelect, onToggle }: {
 }) {
   const active = segments[activeIndex];
   const sceneLabels: Record<RunSheetSegment['scene'], string> = {
-    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序特写', SERVICE_FACTS: '服务说明', Q_AND_A: '安全问答', OFFER: '商品提示',
+    WORKBENCH: '真实作业台', PROCESS_CLOSEUP: '工序特写', SERVICE_FACTS: '服务说明', Q_AND_A: '顾客问答', OFFER: '商品提示',
   };
   return (
     <div className="director-layout">
@@ -650,7 +799,7 @@ function SafeQa({ knowledge, question, evaluation, working, onQuestion, onUse, o
       </section>
 
       <section className="answer-board">
-        <div className="panel-heading"><BookOpenCheck aria-hidden="true" /><div><h2>批准回答</h2><p>点击后系统仍会重新检查证据、有效期和禁止表达。</p></div></div>
+        <div className="panel-heading"><BookOpenCheck aria-hidden="true" /><div><h2>标准回答</h2><p>点击后系统仍会重新检查证据、有效期和禁止表达。</p></div></div>
         <div className="answer-list">
           {knowledge.map((item) => (
             <article key={item.id} className={`answer-row ${item.risk.toLowerCase()}`}>
@@ -824,6 +973,16 @@ function Progress({ label, value, goal }: { label: string; value: number; goal: 
   return <div className="progress-row"><div><strong>{label}</strong><span>{value} / {goal}</span></div><div className="progress-track"><i style={{ width: `${ratio}%` }} /></div></div>;
 }
 
+/** 每项开播准备「怎么解决」的大白话指引（客户看得懂的步骤） */
+const GATE_TIPS: Record<string, string> = {
+  'official-written': '向抖音官方客服要一份书面答复（确认你的到店/上门取送口径、商品命名等），把答复截图保存 → 点上面「导入商品快照」，在「平台规则书面答复」里上传。',
+  'service-area': '已在首次启动时填写并确认了服务范围；如要修改，重新填写初始化信息即可。',
+  cost: '整理平台结算明细和完整成本（人工、耗材、值守、返工、售后等），先脱敏 → 点上面「导入商品快照」，在「完整成本记录」里上传。',
+  hardware: '打开直播输出窗口：① 选择俯拍摄像头，确认画面不露脸；② 点下方「中文语音·开始试听」，确认输出能听见；③ 确认真人声音可以随时接管。',
+  asset: '准备素材授权证明（图片/视频/音乐/语音的使用权）和 AI 标识说明 → 点上面「导入商品快照」，在「素材权利证明」里上传。',
+  authorization: '真正开播时：先在抖音直播伴侣里人工开始直播，再回到本页下方「场次安全控制」，点「我已在直播伴侣人工开播」。',
+};
+
 function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onError, onTransition }: {
   data: BootstrapData;
   activeOffer: OfferSnapshot | null;
@@ -877,7 +1036,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   return (
     <div className="preflight-layout">
       <section className="gate-summary">
-        <div className="gate-lock"><ShieldAlert aria-hidden="true" /><div><strong>正式试播保持锁定</strong><p>当前产品只能进行本地演练和直播伴侣预览，不能声称已经获得真实开播许可。</p></div></div>
+        <div className="gate-lock"><ShieldAlert aria-hidden="true" /><div><strong>正式开播保持锁定</strong><p>要真正开播，必须逐项完成下面的准备。当前只能进行本地演练和直播伴侣预览，不能声称已经获得真实开播许可。</p></div></div>
         <div className="gate-actions"><button className="secondary-action" type="button" onClick={onRefresh}><RefreshCw aria-hidden="true" />重新检查</button><button className="primary-action" type="button" onClick={() => setShowOffer((value) => !value)}><ShoppingBag aria-hidden="true" />{showOffer ? '收起商品导入' : activeOffer ? '更新商品快照' : '导入商品快照'}</button></div>
       </section>
 
@@ -890,9 +1049,9 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
             <label><span>新客成交价（元）</span><input type="number" min="0.01" step="0.01" value={offer.price} onChange={(e) => setOffer({ ...offer, price: e.target.value })} /></label>
             <label><span>正常价（元，可空）</span><input type="number" min="0.01" step="0.01" value={offer.regularPrice} onChange={(e) => setOffer({ ...offer, regularPrice: e.target.value })} placeholder="从有效商品导入" /></label>
             <EvidenceInputs title="商户商品来源（必填并上传文件）" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="官方书面客服证据" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="平台规则书面答复" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} />
             <EvidenceInputs title="完整成本记录" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="素材权利记录" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="素材权利证明" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} />
             <div className="form-actions wide"><button className="secondary-action" type="button" onClick={() => setShowOffer(false)}>取消</button><button className="primary-action" type="button" disabled={saving} onClick={() => void saveOffer()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存7天有效快照</button></div>
           </div>
         </section>
@@ -902,8 +1061,14 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
         {data.preflight.checks.map((check) => (
           <article key={check.id} className={`gate-row ${check.status.toLowerCase()}`}>
             <CheckIcon status={check.status} />
-            <div><strong>{check.label}</strong><p>{check.detail}</p></div>
-            <span>{check.status === 'PASS' ? '已通过' : check.status === 'BLOCKED' ? '阻断' : '需现场确认'}</span>
+            <div>
+              <strong>{check.label}</strong>
+              <p>{check.detail}</p>
+              {check.status !== 'PASS' && GATE_TIPS[check.id] && (
+                <p className="gate-tip"><span>怎么解决：</span>{GATE_TIPS[check.id]}</p>
+              )}
+            </div>
+            <span>{check.status === 'PASS' ? '已完成' : check.status === 'BLOCKED' ? '未完成' : '需人工确认'}</span>
           </article>
         ))}
       </section>
@@ -950,9 +1115,9 @@ function emptyOfferForm() {
 function Audit({ entries }: { entries: AuditEntry[] }) {
   return (
     <section className="audit-panel">
-      <div className="panel-heading"><History aria-hidden="true" /><div><h2>本地审计记录</h2><p>记录配置、商品、回答、场次、在场确认和经营结果；不包含密码、Cookie或完整顾客隐私。</p></div></div>
+      <div className="panel-heading"><History aria-hidden="true" /><div><h2>本地操作日志</h2><p>记录配置、商品、回答、场次、在场确认和经营结果；不包含密码、Cookie或完整顾客隐私。</p></div></div>
       <div className="audit-list">
-        {entries.length === 0 ? <div className="empty-row"><History />暂无审计记录</div> : entries.map((entry) => (
+        {entries.length === 0 ? <div className="empty-row"><History />暂无操作日志</div> : entries.map((entry) => (
           <article key={entry.id}><span className="audit-time">{formatTime(entry.createdAt)}</span><span className="audit-action">{entry.action}</span><strong>{entry.entityType}</strong><p>{auditSummary(entry)}</p></article>
         ))}
       </div>

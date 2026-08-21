@@ -10,7 +10,7 @@ export function CheckIcon({ status }: { status: PreflightCheck['status'] }) {
 export function StateBadge({ state }: { state: string }) {
   const map: Record<string, { label: string; icon: typeof CircleDashed; tone: string }> = {
     DRAFT: { label: '草稿', icon: CircleDashed, tone: 'neutral' },
-    PREFLIGHT_BLOCKED: { label: '试播未解锁', icon: CircleX, tone: 'blocked' },
+    PREFLIGHT_BLOCKED: { label: '开播准备中', icon: CircleX, tone: 'blocked' },
     READY: { label: '本地就绪', icon: CircleCheck, tone: 'pass' },
     LIVE: { label: '直播中', icon: CircleCheck, tone: 'live' },
     PAUSED: { label: 'AI已暂停', icon: TriangleAlert, tone: 'manual' },

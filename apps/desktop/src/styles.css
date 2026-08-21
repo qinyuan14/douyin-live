@@ -397,3 +397,54 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .broadcast-activation-block svg { width: 34px; color: #eab35d; }
 .broadcast-activation-block strong { font-size: 17px; }
 .broadcast-activation-block span { color: #afbec8; font-size: 12px; max-width: 420px; line-height: 1.6; }
+
+/* —— 首页「开播任务」清单卡 —— */
+.task-checklist { grid-column: 1 / -1; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 22px 20px; }
+.task-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.task-heading h2 { margin: 3px 0 0; font-size: 19px; letter-spacing: -.01em; }
+.task-kicker { display: inline-block; color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.task-count { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--wash); padding: 5px 11px; border-radius: 999px; }
+.task-guide-link { border: 0; background: transparent; color: var(--blue); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 4px 0; }
+.task-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.task-item { display: grid; grid-template-columns: 30px 18px minmax(0, 1fr); align-items: center; gap: 9px; padding: 12px 13px; border: 1px solid var(--steel); border-radius: 12px; background: white; text-align: left; cursor: pointer; transition: border-color .15s; }
+.task-item:hover { border-color: var(--blue); }
+.task-item.done { background: var(--green-soft); border-color: #bcdcc9; }
+.task-item.blocked { opacity: .8; }
+.task-num { font-size: 11px; font-weight: 800; color: var(--muted); }
+.task-icon { display: grid; place-items: center; }
+.task-icon svg { width: 16px; }
+.task-item.done .task-icon svg { color: var(--green); }
+.task-item.todo .task-icon svg { color: var(--blue); }
+.task-item.blocked .task-icon svg { color: #9aa8b2; }
+.task-main { display: flex; flex-direction: column; min-width: 0; }
+.task-main strong { font-size: 13.5px; }
+.task-main small { color: var(--muted); font-size: 11px; line-height: 1.45; margin-top: 2px; }
+.task-state { font-size: 10.5px; font-weight: 700; white-space: nowrap; align-self: start; justify-self: end; }
+.task-item.done .task-state { color: var(--green); }
+.task-item.todo .task-state { color: var(--blue); }
+.task-item.ready .task-state { color: var(--amber); }
+.task-item.blocked .task-state { color: #9aa8b2; }
+
+/* —— 新手引导弹窗 —— */
+.guide-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(21, 40, 56, .45); padding: 24px; }
+.guide-modal { width: min(640px, 100%); max-height: 90vh; overflow-y: auto; background: var(--paper); border-radius: 18px; box-shadow: var(--shadow); padding: 30px 32px 28px; }
+.guide-modal h2 { margin: 0 0 10px; font-size: 22px; color: var(--navy); }
+.guide-modal > p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; line-height: 1.65; }
+.guide-steps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; counter-reset: step; }
+.guide-steps li { display: flex; align-items: baseline; gap: 10px; background: white; border: 1px solid var(--steel); border-radius: 11px; padding: 11px 14px; font-size: 13.5px; }
+.guide-steps li::before { counter-increment: step; content: counter(step); flex: 0 0 22px; height: 22px; display: grid; place-items: center; background: var(--blue); color: white; font-size: 11.5px; font-weight: 800; border-radius: 7px; }
+.guide-steps li b { white-space: nowrap; }
+.guide-steps li span { color: var(--muted); font-size: 12.5px; }
+.guide-note { margin: 0 0 18px !important; font-size: 12.5px !important; background: var(--amber-soft); border-radius: 10px; padding: 10px 13px; color: #7a5310 !important; }
+.guide-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* —— 开播准备每项「怎么解决」 —— */
+.gate-tip { margin-top: 6px; padding: 7px 10px; background: var(--amber-soft); border-radius: 8px; color: #7a5310; font-size: 11.5px; line-height: 1.55; }
+.gate-tip span { font-weight: 800; }
+
+@media (max-width: 1100px) {
+  .task-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .task-list { grid-template-columns: 1fr; }
+}
