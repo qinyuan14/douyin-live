@@ -119,7 +119,11 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
         ? { ...offer, status: 'EXPIRED' as const }
         : offer
     )));
-    const activeOffer = visibleOffers.find((offer) => offer.status === 'ACTIVE' && new Date(offer.validUntil).getTime() > Date.now()) ?? null;
+    // v9.1：自查模式快照（evidenceRefs 为空）直接展示；多条有效记录取 validUntil 最新
+    const validOffers = visibleOffers.filter((offer) => offer.status === 'ACTIVE' && new Date(offer.validUntil).getTime() > Date.now());
+    const activeOffer = validOffers.length === 0
+      ? null
+      : [...validOffers].sort((a, b) => new Date(b.validUntil).getTime() - new Date(a.validUntil).getTime())[0] ?? null;
     return {
       config,
       offers: visibleOffers,

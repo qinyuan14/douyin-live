@@ -277,13 +277,16 @@ export class LiveDatabase {
 
   async getActiveOffer(): Promise<OfferSnapshot | null> {
     const now = Date.now();
-    return this.state.offers.find((offer) =>
-      offer.status === 'ACTIVE' &&
-      new Date(offer.validUntil).getTime() > now &&
-      offer.evidenceRefs.length > 0 &&
-      offer.evidenceRefs.every((ref: EvidenceRef) => evidenceMatchesStoredFile(ref)) &&
-      this.allEvidenceIsRegisteredSync(offer.evidenceRefs),
-    ) ?? null;
+    // v9.1 起商品快照为自查模式（evidenceRefs 可为空）：自查快照直接视为有效；
+    // 仍携带文件证据的旧快照才校验证据是否有效。多条有效记录取 validUntil 最新。
+    const candidates = this.state.offers.filter((offer) => {
+      if (offer.status !== 'ACTIVE' || new Date(offer.validUntil).getTime() <= now) return false;
+      if (offer.evidenceRefs.length === 0) return true;
+      return offer.evidenceRefs.every((ref: EvidenceRef) => evidenceMatchesStoredFile(ref))
+        && this.allEvidenceIsRegisteredSync(offer.evidenceRefs);
+    });
+    if (candidates.length === 0) return null;
+    return [...candidates].sort((a, b) => new Date(b.validUntil).getTime() - new Date(a.validUntil).getTime())[0] ?? null;
   }
 
   async createSession(session: LiveSession): Promise<LiveSession> {

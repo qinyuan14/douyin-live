@@ -158,6 +158,35 @@ test('fresh installation stays fail-closed and creates an auditable draft sessio
   }
 });
 
+test('a self-check offer snapshot counts as the active offer and unlocks its gates', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'live-api-selfcheck-'));
+  const previousRoot = process.env.LIVE_PROJECT_ROOT;
+  process.env.LIVE_PROJECT_ROOT = root;
+  const service = new LiveService();
+  try {
+    await service.onModuleInit();
+    const now = new Date().toISOString();
+    const validUntil = new Date(Date.now() + 86_400_000).toISOString();
+    // v9.1 自查模式：无证据文件、selfChecks 全确认
+    await service.saveOffer({
+      id: crypto.randomUUID(), productId: 'self-1', title: '自查商品', priceCents: 990, regularPriceCents: 3900,
+      shoeTypes: ['常规品类'], serviceAreas: ['主城区'], status: 'ACTIVE', capturedAt: now, validUntil,
+      evidenceRefs: [],
+      selfChecks: { offerConfirmed: true, costConfirmed: true, assetConfirmed: true },
+    });
+    const active = await service.bootstrap();
+    assert.equal(active.offers.some((offer) => offer.status === 'ACTIVE'), true);
+    const preflight = await service.preflight();
+    const selfGates = preflight.checks.filter((check) => ['self-offer', 'self-cost', 'self-asset'].includes(check.id));
+    assert.equal(selfGates.every((check) => check.status === 'PASS'), true);
+  } finally {
+    await service.onModuleDestroy();
+    if (previousRoot === undefined) delete process.env.LIVE_PROJECT_ROOT;
+    else process.env.LIVE_PROJECT_ROOT = previousRoot;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('concurrent session requests return the same single active session', async () => {
   const root = await mkdtemp(join(tmpdir(), 'live-api-race-'));
   const previousRoot = process.env.LIVE_PROJECT_ROOT;
