@@ -162,6 +162,19 @@ export const PreflightCheckSchema = z.object({
 });
 export type PreflightCheck = z.infer<typeof PreflightCheckSchema>;
 
+export const TtsConfigSchema = z.object({
+  // 播报音色来源：system（Windows 系统语音）| volcengine（火山引擎·抖音同款，需密钥）
+  provider: z.enum(['system', 'volcengine']),
+  systemVoiceName: z.string().nullable(),
+  volcengine: z.object({
+    appId: z.string(),
+    accessToken: z.string(),
+    cluster: z.string(),
+    voiceType: z.string(),
+  }),
+});
+export type TtsConfig = z.infer<typeof TtsConfigSchema>;
+
 export const StoreConfigSchema = z.object({
   presenceIntervalMinutes: z.number(),
   maxMissedPresence: z.number(),
@@ -172,6 +185,12 @@ export const StoreConfigSchema = z.object({
   serviceAreasConfirmed: z.boolean(),
   productCategories: z.array(z.string()),
   onboardingCompleted: z.boolean(),
+  // v13.1：播报音色设置（系统语音 / 火山引擎·抖音同款）
+  tts: TtsConfigSchema.default({
+    provider: 'system',
+    systemVoiceName: null,
+    volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+  }),
 });
 export type StoreConfig = z.infer<typeof StoreConfigSchema>;
 

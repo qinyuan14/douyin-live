@@ -36,6 +36,16 @@ export class AppController {
     }
   }
 
+  // v13.1：火山引擎语音合成代理（text → mp3 base64），密钥只存在本机 config，不外发
+  @Post('/tts')
+  async tts(@Body() body: unknown) {
+    try {
+      return await this.live.tts(body);
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
   @Get('/offers')
   listOffers() {
     return this.live.listOffers();

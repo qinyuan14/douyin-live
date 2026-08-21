@@ -4,12 +4,22 @@ import { api } from '../api.js';
 import { createLiveChannel, type LiveMessage } from '../broadcast.js';
 import { splitCaption } from '../lib/captions.js';
 import { selectCurrentOffer } from '../lib/offers.js';
+import type { TtsConfig } from '@liveops/live-contracts';
 
 function chooseChineseVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
   return voices.find((voice) => voice.lang.toLowerCase().startsWith('zh-cn'))
     ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('zh'))
     ?? null;
+}
+
+/** v13.1：按设置选择系统语音（设置了指定音色优先，否则自动挑一个中文语音） */
+function pickSystemVoice(tts: TtsConfig | null): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  const named = tts?.systemVoiceName
+    ? voices.find((voice) => voice.name === tts.systemVoiceName)
+    : null;
+  return named ?? chooseChineseVoice();
 }
 
 function isSpeechBlocked(state: string): boolean {
@@ -22,6 +32,8 @@ export function OutputApp() {
   const stateRef = useRef('PREFLIGHT_BLOCKED');
   const connectedRef = useRef(false);
   const speechSequenceRef = useRef(0);
+  const ttsRef = useRef<TtsConfig | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [caption, setCaption] = useState('真实作业现场准备中');
   const [scene, setScene] = useState('WORKBENCH');
   const [state, setState] = useState('PREFLIGHT_BLOCKED');
@@ -43,6 +55,8 @@ export function OutputApp() {
   const stopSpeech = useCallback((reason: string) => {
     speechSequenceRef.current += 1;
     window.speechSynthesis.cancel();
+    audioRef.current?.pause();
+    audioRef.current = null;
     setSpeaking(false);
     setCaption(reason);
   }, []);
@@ -65,6 +79,7 @@ export function OutputApp() {
       setServiceAreas(data.config.serviceAreas ?? []);
       setStoreName(data.config.storeName ?? '');
       setTagline(data.config.tagline ?? '');
+      ttsRef.current = data.config.tts ?? null;
       setActivated(data.activation.activated);
     } catch {
       connectedRef.current = false;
@@ -100,6 +115,10 @@ export function OutputApp() {
     const sequence = speechSequenceRef.current + 1;
     speechSequenceRef.current = sequence;
     window.speechSynthesis.cancel();
+    audioRef.current?.pause();
+    audioRef.current = null;
+    const volcReady = ttsRef.current?.provider === 'volcengine'
+      && Boolean(ttsRef.current.volcengine.appId) && Boolean(ttsRef.current.volcengine.accessToken);
     const speakNext = (index: number) => {
       if (sequence !== speechSequenceRef.current || !connectedRef.current || isSpeechBlocked(stateRef.current)) return;
       const chunk = chunks[index];
@@ -107,12 +126,39 @@ export function OutputApp() {
         setSpeaking(false);
         return;
       }
+      if (volcReady) {
+        // v13.1：火山引擎（抖音同款音色）——内置 API 代理合成 mp3 播放
+        void api.tts({ text: chunk }).then(({ audioBase64 }) => {
+          if (sequence !== speechSequenceRef.current) return;
+          const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+          audioRef.current = audio;
+          audio.onended = () => speakNext(index + 1);
+          audio.onerror = () => {
+            stopSpeech('云端语音播放异常，请员工使用真人声音接管');
+            void api.updateHardware({ voiceReady: false }).catch(() => {
+              connectedRef.current = false;
+              setServiceConnected(false);
+            });
+          };
+          setSpeaking(true);
+          setCaption(chunk);
+          void audio.play().catch(() => stopSpeech('云端语音播放失败，请员工使用真人声音接管'));
+        }).catch(() => {
+          stopSpeech('云端语音合成失败，请员工使用真人声音接管');
+          void api.updateHardware({ voiceReady: false }).catch(() => {
+            connectedRef.current = false;
+            setServiceConnected(false);
+          });
+        });
+        return;
+      }
+      // 系统语音
       const utterance = new SpeechSynthesisUtterance(chunk);
       utterance.lang = 'zh-CN';
       utterance.rate = 0.96;
       utterance.pitch = 1.04;
       utterance.volume = 1;
-      const voice = chooseChineseVoice();
+      const voice = pickSystemVoice(ttsRef.current);
       if (voice) utterance.voice = voice;
       utterance.onstart = () => { setSpeaking(true); setCaption(chunk); };
       utterance.onend = () => speakNext(index + 1);
@@ -142,13 +188,35 @@ export function OutputApp() {
       if (message.type === 'stop-speech') stopSpeech(message.reason);
       if (message.type === 'speak') speak(message);
       if (message.type === 'voice-test') {
-        const voice = chooseChineseVoice();
+        const volcReady = ttsRef.current?.provider === 'volcengine'
+          && Boolean(ttsRef.current.volcengine.appId) && Boolean(ttsRef.current.volcengine.accessToken);
+        const testText = '实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。';
+        if (volcReady) {
+          void api.tts({ text: testText, voiceType: ttsRef.current?.volcengine.voiceType || undefined })
+            .then(({ audioBase64 }) => {
+              const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+              audio.onended = () => {
+                channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: `火山引擎·${ttsRef.current?.volcengine.voiceType ?? ''}` });
+              };
+              audio.onerror = () => {
+                channel.postMessage({ type: 'voice-test-result', id: message.id, generated: false, voiceName: null });
+                void api.updateHardware({ voiceReady: false });
+              };
+              void audio.play();
+            })
+            .catch(() => {
+              channel.postMessage({ type: 'voice-test-result', id: message.id, generated: false, voiceName: null });
+              void api.updateHardware({ voiceReady: false });
+            });
+          return;
+        }
+        const voice = pickSystemVoice(ttsRef.current);
         if (!voice) {
           channel.postMessage({ type: 'voice-test-result', id: message.id, generated: false, voiceName: null });
           void api.updateHardware({ voiceReady: false });
           return;
         }
-        const utterance = new SpeechSynthesisUtterance('实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。');
+        const utterance = new SpeechSynthesisUtterance(testText);
         utterance.voice = voice;
         utterance.lang = 'zh-CN';
         utterance.onend = () => {

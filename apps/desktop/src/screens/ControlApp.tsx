@@ -45,6 +45,8 @@ import type {
   ResponseEvaluationResult,
   RestoreResult,
   RunSheetSegment,
+  StoreConfig,
+  TtsConfig,
 } from '@liveops/live-contracts';
 import { api, type AuditEntry, type BootstrapData } from '../api.js';
 import { createLiveChannel } from '../broadcast.js';
@@ -510,6 +512,7 @@ export function ControlApp() {
               voiceTestGenerated={voiceTestGenerated}
               onVoiceConfirm={() => void confirmVoiceHeard()}
               onOfferSaved={async () => { await refresh(true); setNotice({ tone: 'success', message: '商品快照已保存；开播准备没完成前仍不能正式开播。' }); }}
+              onSaveTts={async (tts) => { await api.saveConfig({ tts }); await refresh(true); }}
               onError={(message) => setNotice({ tone: 'error', message })}
               onTransition={(next, reason, confirmed) => void transition(next, reason, confirmed)}
             />
@@ -1110,7 +1113,7 @@ const GATE_TIPS: Record<string, string> = {
   authorization: '在抖音直播伴侣人工开播后，点下方「我已在直播伴侣人工开播」。',
 };
 
-function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onError, onTransition }: {
+function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onSaveTts, onError, onTransition }: {
   data: BootstrapData;
   activeOffer: OfferSnapshot | null;
   onRefresh: () => void;
@@ -1120,6 +1123,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   voiceTestPending: boolean;
   voiceTestGenerated: boolean;
   onOfferSaved: () => Promise<void>;
+  onSaveTts: (tts: TtsConfig) => Promise<void>;
   onError: (message: string) => void;
   onTransition: (state: LiveSession['state'], reason: string | null, confirmed?: boolean) => void;
 }) {
@@ -1219,6 +1223,8 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
         ))}
       </section>
 
+      <VoiceSettings config={data.config} onSave={onSaveTts} onError={onError} />
+
       <section className="hardware-confirm">
         <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>直播监护确认（数字人模式）</h2><p>数字人直播不连接真实摄像头；只需确认画面合规、声音线路正确、真人可随时接管。这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
         <div className="hardware-buttons">
@@ -1246,6 +1252,89 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 
 function emptyOfferForm() {
   return { productId: '', title: '', price: '', regularPrice: '', offerConfirmed: false, costConfirmed: false, assetConfirmed: false };
+}
+
+const DEFAULT_TTS: TtsConfig = {
+  provider: 'system',
+  systemVoiceName: null,
+  volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+};
+
+/** v13.1：播报音色设置——系统语音选择器 + 火山引擎（抖音同款）密钥与音色 */
+function VoiceSettings({ config, onSave, onError }: {
+  config: StoreConfig;
+  onSave: (tts: TtsConfig) => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [tts, setTts] = useState<TtsConfig>(() => ({ ...DEFAULT_TTS, ...config.tts, volcengine: { ...DEFAULT_TTS.volcengine, ...config.tts?.volcengine } }));
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () => setVoices(window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('zh')));
+    load();
+    window.speechSynthesis.addEventListener('voiceschanged', load);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave(tts);
+      setTestResult(null);
+      onError('播报音色设置已保存；切换来源后请重新试听确认。');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '音色设置保存失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testVoice() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { audioBase64 } = await api.tts({ text: '你好，这是直播播报音色试听，请确认声音自然好听。', voiceType: tts.volcengine.voiceType || undefined });
+      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      audio.onended = () => setTestResult('试听播放完毕。');
+      void audio.play();
+      setTestResult('正在播放试听…');
+    } catch (error) {
+      setTestResult(null);
+      onError(error instanceof Error ? error.message : '音色试听失败');
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <section className="voice-settings">
+      <div className="panel-heading"><Volume2 aria-hidden="true" /><div><h2>播报音色</h2><p>选择 AI 播报的声音。系统语音免费随时可用；火山引擎（抖音同款）音质更自然，需填入 AppID 与访问令牌（只保存在本机）。</p></div></div>
+      <div className="voice-form">
+        <label className="wide"><span>音色来源</span><select value={tts.provider} onChange={(e) => setTts({ ...tts, provider: e.target.value as TtsConfig['provider'] })}>
+          <option value="system">系统语音（免费，随时可用）</option>
+          <option value="volcengine">火山引擎·抖音同款（音质更自然）</option>
+        </select></label>
+        {tts.provider === 'system' ? (
+          <label className="wide"><span>系统中文语音</span><select value={tts.systemVoiceName ?? ''} onChange={(e) => setTts({ ...tts, systemVoiceName: e.target.value || null })}>
+            <option value="">自动挑选（系统默认）</option>
+            {voices.map((voice) => <option key={voice.name} value={voice.name}>{voice.name}</option>)}
+          </select><small>这里列的是你电脑里已安装的中文语音；装更多语音后重新打开此页即可看到。</small></label>
+        ) : (
+          <>
+            <label className="wide"><span>AppID（火山引擎语音合成）</span><input value={tts.volcengine.appId} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, appId: e.target.value } })} placeholder="申请地址：console.volcengine.com → 语音技术 → 语音合成" /></label>
+            <label className="wide"><span>访问令牌 Access Token</span><input value={tts.volcengine.accessToken} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, accessToken: e.target.value } })} placeholder="只保存在本机，不会上传" /></label>
+            <label className="wide"><span>音色类型（VoiceType）</span><input value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })} placeholder="例如 BV700_streaming（灿灿）" /><small>火山引擎音色列表可在控制台查看；填好后点「试听音色」验证。</small></label>
+          </>
+        )}
+        {tts.provider === 'volcengine' && <button className="secondary-action wide" type="button" disabled={testing || !tts.volcengine.appId || !tts.volcengine.accessToken} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}
+        {testResult && <p className="voice-test-result">{testResult}</p>}
+        <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存音色设置</button></div>
+      </div>
+    </section>
+  );
 }
 
 function Audit({ entries }: { entries: AuditEntry[] }) {

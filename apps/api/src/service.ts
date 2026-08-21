@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -156,6 +157,36 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
 
   updateConfig(input: unknown) {
     return this.database.updateStoreConfig(input);
+  }
+
+  /**
+   * v13.1：火山引擎语音合成代理（抖音同款音色）。
+   * 密钥只保存在本机 config，播报时由内置 API 代理调用，不外发。
+   * 未配置密钥/未开启时返回明确错误，前端回退系统语音。
+   */
+  async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
+    const parsed = z.object({ text: z.string().min(1).max(500), voiceType: z.string().optional() }).parse(input);
+    const config = await this.database.getStoreConfig();
+    const v = config.tts?.volcengine;
+    if (config.tts?.provider !== 'volcengine' || !v?.appId || !v?.accessToken) {
+      throw new Error('尚未开启火山引擎语音：请先在「语音设置」中填写 AppID 与访问令牌，并切换音色来源');
+    }
+    const voiceType = parsed.voiceType || v.voiceType || 'BV700_streaming';
+    const response = await fetch('https://openspeech.bytedance.com/api/v1/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer;${v.accessToken}` },
+      body: JSON.stringify({
+        app: { appid: v.appId, token: v.accessToken, cluster: v.cluster || 'volcano_tts' },
+        user: { uid: 'liveops-local' },
+        audio: { voice_type: voiceType, encoding: 'mp3', speed_ratio: 1.0, volume_ratio: 1.0, pitch_ratio: 1.0 },
+        request: { reqid: crypto.randomUUID(), text: parsed.text, operation: 'query' },
+      }),
+    });
+    const payload = await response.json().catch(() => null) as { code?: number; message?: string; data?: { audio?: string } } | null;
+    if (!response.ok || payload?.code !== 3000 || !payload.data?.audio) {
+      throw new Error(`火山引擎语音合成失败：${payload?.message ?? `HTTP ${response.status}`}（请检查密钥与音色类型）`);
+    }
+    return { audioBase64: payload.data.audio, format: 'mp3' };
   }
 
   listOffers() {

@@ -125,6 +125,8 @@ export const api = {
   getActivation: () => request<ActivationState>('/activation'),
   activate: (code: string) => request<ActivationState>('/activation', { method: 'POST', body: JSON.stringify({ code }) }),
   saveConfig: (input: Partial<StoreConfig>) => request<StoreConfig>('/config', { method: 'PUT', body: JSON.stringify(input) }),
+  // v13.1：火山引擎语音合成（text → mp3 base64）
+  tts: (input: { text: string; voiceType?: string }) => request<{ audioBase64: string; format: string }>('/tts', { method: 'POST', body: JSON.stringify(input) }),
   saveOffer: (input: OfferSnapshot) => request<OfferSnapshot>('/offers', { method: 'POST', body: JSON.stringify(input) }),
   saveKnowledge: (input: KnowledgeItem) => request<KnowledgeItem>('/knowledge', { method: 'POST', body: JSON.stringify(input) }),
   evaluate: (input: { knowledgeItemId: string | null; question: string; proposedAnswer: string }) =>
