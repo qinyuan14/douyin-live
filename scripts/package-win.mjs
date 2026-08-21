@@ -33,11 +33,16 @@ function run(command, args, options = {}) {
 }
 
 function pnpm(args, options = {}) {
+  // pnpm run 会隐式做依赖自检 → 触发 install → 在无 TTY 环境（本机沙箱/CI）被中止
+  // （ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY）。对 run 类调用显式绕过该自检。
+  const fullArgs = args[0] === 'run' || args[0] === 'exec'
+    ? ['--config.verify-deps-before-run=false', ...args]
+    : args;
   if (pnpmBin) {
-    run(process.execPath, [pnpmBin, ...args], options);
+    run(process.execPath, [pnpmBin, ...fullArgs], options);
     return;
   }
-  run('npx', ['-y', 'pnpm@11.5.0', ...args], options);
+  run('npx', ['-y', 'pnpm@11.5.0', ...fullArgs], options);
 }
 
 function step(title) {
