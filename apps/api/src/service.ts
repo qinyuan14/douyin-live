@@ -109,10 +109,12 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       this.cohortReport(),
       this.preflight(),
     ]);
+    // v8.1 起商品快照以自查确认为准（evidenceRefs 可为空）；仅对仍携带文件证据的
+    // 旧快照校验证据是否失效（文件缺失/未注册则过期），自查模式快照不受影响。
     const visibleOffers = await Promise.all(offers.map(async (offer) => (
       offer.status === 'ACTIVE'
-      && (!offer.evidenceRefs.length
-        || !offer.evidenceRefs.every((evidence) => evidenceMatchesStoredFile(evidence))
+      && offer.evidenceRefs.length > 0
+      && (!offer.evidenceRefs.every((evidence) => evidenceMatchesStoredFile(evidence))
         || !await this.database.allEvidenceIsRegistered(offer.evidenceRefs))
         ? { ...offer, status: 'EXPIRED' as const }
         : offer
@@ -420,9 +422,11 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       const paidAt = new Date(order.firstPaidAt).getTime();
       if (paidAt < new Date(session.startedAt).getTime() || paidAt > new Date(session.endedAt).getTime()) return false;
       if (!order.evidenceRefs.every((evidence) => evidenceMatchesStoredFile(evidence)) || registeredEvidence.get(order.id) !== true) return false;
-      const costEvidence = order.evidenceRefs.find((evidence) => evidence.sourceType === 'COST_RECORD');
-      const newCustomerEvidence = order.evidenceRefs.find((evidence) => evidence.sourceType === 'MERCHANT_RECORD');
-      if (!costEvidence || !newCustomerEvidence || costEvidence.sourceUri === newCustomerEvidence.sourceUri) return false;
+      // v8.1 起自查模式与文件证据二选一：自查确认（记录真实履约+成本真实）或 传统文件证据
+      const selfChecked = order.selfChecks?.recordConfirmed === true && order.selfChecks?.costConfirmed === true;
+      const hasFileEvidence = order.evidenceRefs.some((evidence) => evidence.sourceType === 'COST_RECORD')
+        && order.evidenceRefs.some((evidence) => evidence.sourceType === 'MERCHANT_RECORD');
+      if (!selfChecked && !hasFileEvidence) return false;
       return !order.repeatPaidAt || (offer.regularPriceCents !== null && order.repeatPriceCents === offer.regularPriceCents);
     });
     const base = calculateCohortReport(eligibleOrders);

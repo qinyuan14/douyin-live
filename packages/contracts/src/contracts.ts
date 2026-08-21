@@ -35,6 +35,12 @@ export const OfferSnapshotSchema = z.object({
   shoeTypes: z.array(z.string()),
   serviceAreas: z.array(z.string()),
   evidenceRefs: z.array(EvidenceRefSchema),
+  // 流程精简（v8.1）：不再要求上传文件证据，改由商家逐项自查确认（真实合规把关仍保留）
+  selfChecks: z.object({
+    offerConfirmed: z.boolean(),
+    costConfirmed: z.boolean(),
+    assetConfirmed: z.boolean(),
+  }).default({ offerConfirmed: false, costConfirmed: false, assetConfirmed: false }),
   capturedAt: z.string(),
   validUntil: z.string(),
   status: z.enum(['ACTIVE', 'EXPIRED', 'DRAFT']),
@@ -86,6 +92,11 @@ export const OrderOutcomeSchema = z.object({
   equipmentCostCents: z.number().nullable(),
   softwareCostCents: z.number().nullable(),
   evidenceRefs: z.array(EvidenceRefSchema),
+  // v8.1 起订单也可自查确认（不再强制上传证据文件）：记录真实履约 + 成本按真实口径
+  selfChecks: z.object({
+    recordConfirmed: z.boolean(),
+    costConfirmed: z.boolean(),
+  }).default({ recordConfirmed: false, costConfirmed: false }),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

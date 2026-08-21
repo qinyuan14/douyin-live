@@ -12,7 +12,6 @@ import {
   Database,
   DatabaseBackup,
   FileClock,
-  FileUp,
   Gauge,
   Hand,
   Headphones,
@@ -47,7 +46,7 @@ import type {
   RestoreResult,
   RunSheetSegment,
 } from '@liveops/live-contracts';
-import { api, type AuditEntry, type BootstrapData, type StoredEvidenceFile } from '../api.js';
+import { api, type AuditEntry, type BootstrapData } from '../api.js';
 import { createLiveChannel } from '../broadcast.js';
 import { CatMark } from '../components/Icons.js';
 import { CheckIcon, StateBadge } from '../components/Status.js';
@@ -711,7 +710,7 @@ interface TaskItem {
 /** 首页「开播任务」清单：从 0 到开播的 5 件事，每件写明怎么做、做到哪、点哪进入 */
 function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): TaskItem[] {
   const statusById = new Map(data.preflight.checks.map((check) => [check.id, check.status]));
-  const evidenceDone = ['official-written', 'cost', 'asset'].every((id) => statusById.get(id) === 'PASS');
+  const evidenceDone = ['self-offer', 'self-cost', 'self-asset'].every((id) => statusById.get(id) === 'PASS');
   const hardwareDone = data.hardware.cameraReady && data.hardware.voiceReady && data.hardware.takeoverReady;
   const rehearsalReady = data.runSheet.some((segment) => segment.approved);
   const canGoLive = !data.preflight.blocked && !data.preflight.manualRequired;
@@ -725,12 +724,12 @@ function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): Tas
       page: 'overview',
     },
     {
-      // 流程精简（批次2）：录入商品与补齐三份材料合并为一项，一次在「开播准备」里做完
+      // 流程精简（批次2）：录入商品与三份材料合并为一项，一次在「开播准备」里做完
       id: 'offer',
-      label: '录入你的商品与材料',
+      label: '录入你的商品',
       how: activeOffer && evidenceDone
-        ? `已就绪：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）与三份材料`
-        : '到「开播准备」导入商品快照（填商品ID、价格、传商户来源），并把三份材料（书面答复、成本、素材）一起传上',
+        ? `已就绪：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）与三项自查`
+        : '到「开播准备」导入商品快照：填商品名和价格，勾选三项自查确认（不用上传任何文件）',
       status: activeOffer && evidenceDone ? 'done' : 'todo',
       page: 'preflight',
     },
@@ -773,7 +772,7 @@ function GuideModal({ onClose, onStart }: { onClose: () => void; onStart: (page:
         <p>这套工具帮你把「真实工作台」直播出去：AI 主持播报、真人监护、问答有把关。从 0 到开播，跟着 5 步走：</p>
         <ol className="guide-steps">
           <li><b>填写店铺信息</b><span>品牌名、服务范围、商品类目（你已完成）</span></li>
-          <li><b>录入你的商品与材料</b><span>在「开播准备」导入商品快照，三份材料（书面答复、成本、素材）一起传上</span></li>
+          <li><b>录入你的商品</b><span>在「开播准备」导入商品快照：填商品名和价格，勾选三项自查（不用上传文件）</span></li>
           <li><b>确认本机设备</b><span>摄像头画面不露脸、中文语音能听见、真人声音可接管</span></li>
           <li><b>本地演练一遍</b><span>在「直播流程」试听 AI 两小时播报，检查声音和字幕</span></li>
           <li><b>正式开播</b><span>全部准备完成后，再上抖音直播伴侣人工开播</span></li>
@@ -960,11 +959,9 @@ function Orders({ data, onSaved, onError }: {
   const [showForm, setShowForm] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [costEvidence, setCostEvidence] = useState<StoredEvidenceFile | null>(null);
-  const [newCustomerEvidence, setNewCustomerEvidence] = useState<StoredEvidenceFile | null>(null);
   const completedSessions = data.sessions.filter((session) => session.startedAt && session.endedAt && ['STOPPED', 'COMPLETED'].includes(session.state));
   const [form, setForm] = useState({
-    liveSessionId: '', externalRef: '', customerRef: '', firstPaidAt: '', pickedUpAt: '', firstNet: '', repeatNet: '', repeatPrice: '', platformFee: '', pickup: '', production: '', material: '', liveLabor: '', rework: '', compensation: '', equipment: '', software: '', completed: false, refunded: false, repeat: false, completedAt: '', refundedAt: '', repeatPaidAt: '', sourceTitle: '', newCustomerConfirmed: false, privacyConfirmed: false,
+    liveSessionId: '', externalRef: '', customerRef: '', firstPaidAt: '', pickedUpAt: '', firstNet: '', repeatNet: '', repeatPrice: '', platformFee: '', pickup: '', production: '', material: '', liveLabor: '', rework: '', compensation: '', equipment: '', software: '', completed: false, refunded: false, repeat: false, completedAt: '', refundedAt: '', repeatPaidAt: '', sourceTitle: '', newCustomerConfirmed: false, recordConfirmed: false, costConfirmed: false,
   });
 
   async function submit() {
@@ -975,9 +972,8 @@ function Orders({ data, onSaved, onError }: {
     if (!linkedOffer) return onError('所选直播场次缺少当时冻结的商品快照，不能记录经营结果。');
     if (!form.firstPaidAt) return onError('必须填写真实首单付款时间。');
     if (form.completed && !form.pickedUpAt) return onError('已完成订单必须填写真实履约时间。');
-    if (!costEvidence) return onError('请选择并保全本笔经营记录的结算或成本证据文件。');
-    if (!form.newCustomerConfirmed || !newCustomerEvidence) return onError('必须人工核对平台历史订单，并保全已脱敏的新客核对证据。');
-    if (!form.privacyConfirmed) return onError('请先确认两份证据文件均已移除姓名、电话、地址、头像、订单号和券码。');
+    if (!form.newCustomerConfirmed) return onError('必须人工核对平台历史订单，确认这是首次消费候选新客。');
+    if (!form.recordConfirmed || !form.costConfirmed) return onError('请勾选两项自查确认：订单真实履约、成本按真实口径。');
     if (form.completed && !form.completedAt) return onError('已完成订单必须填写实际完成时间。');
     if (form.repeat && !form.repeatPaidAt) return onError('正常价复购必须填写实际复购付款时间。');
     if (form.repeat && !form.repeatPrice.trim()) return onError('正常价复购必须填写实际成交价。');
@@ -1004,17 +1000,17 @@ function Orders({ data, onSaved, onError }: {
         platformFeeCents: cents(form.platformFee), pickupDeliveryCostCents: cents(form.pickup), productionLaborCostCents: cents(form.production),
         materialCostCents: cents(form.material), liveLaborCostCents: cents(form.liveLabor), reworkCostCents: cents(form.rework),
         compensationCostCents: cents(form.compensation), equipmentCostCents: cents(form.equipment), softwareCostCents: cents(form.software),
-        evidenceRefs: [
-          { id: costEvidence.id, title: form.sourceTitle.trim(), sourceType: 'COST_RECORD', sourceUri: costEvidence.sourceUri, capturedAt: timestamp, validUntil: new Date(Date.now() + 365 * 86_400_000).toISOString(), sha256: costEvidence.sha256 },
-          { id: newCustomerEvidence.id, title: '已脱敏的新客历史核对记录', sourceType: 'MERCHANT_RECORD', sourceUri: newCustomerEvidence.sourceUri, capturedAt: timestamp, validUntil: new Date(Date.now() + 365 * 86_400_000).toISOString(), sha256: newCustomerEvidence.sha256 },
-        ],
+        // v8.1 起不再上传证据文件：evidenceRefs 留空，改由 selfChecks 自查确认把关
+        evidenceRefs: [],
+        selfChecks: {
+          recordConfirmed: form.recordConfirmed,
+          costConfirmed: form.costConfirmed,
+        },
         createdAt: timestamp, updatedAt: timestamp,
       };
       await api.saveOrder(order);
       setShowForm(false);
-      setForm({ liveSessionId: '', externalRef: '', customerRef: '', firstPaidAt: '', pickedUpAt: '', firstNet: '', repeatNet: '', repeatPrice: '', platformFee: '', pickup: '', production: '', material: '', liveLabor: '', rework: '', compensation: '', equipment: '', software: '', completed: false, refunded: false, repeat: false, completedAt: '', refundedAt: '', repeatPaidAt: '', sourceTitle: '', newCustomerConfirmed: false, privacyConfirmed: false });
-      setCostEvidence(null);
-      setNewCustomerEvidence(null);
+      setForm({ liveSessionId: '', externalRef: '', customerRef: '', firstPaidAt: '', pickedUpAt: '', firstNet: '', repeatNet: '', repeatPrice: '', platformFee: '', pickup: '', production: '', material: '', liveLabor: '', rework: '', compensation: '', equipment: '', software: '', completed: false, refunded: false, repeat: false, completedAt: '', refundedAt: '', repeatPaidAt: '', sourceTitle: '', newCustomerConfirmed: false, recordConfirmed: false, costConfirmed: false });
       await onSaved();
     } catch (error) {
       onError(error instanceof Error ? error.message : '经营结果保存失败');
@@ -1073,10 +1069,9 @@ function Orders({ data, onSaved, onError }: {
             <label className="wide"><span>平台订单标识</span><input value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })} placeholder="保存前会在本机转为SHA-256摘要，原标识不保存" /></label>
             <label className="wide"><span>平台稳定顾客标识</span><input value={form.customerRef} onChange={(e) => setForm({ ...form, customerRef: e.target.value })} placeholder="仅用于去重，保存前转为SHA-256摘要" /></label>
             <label className="wide"><span>数据来源标题</span><input value={form.sourceTitle} onChange={(e) => setForm({ ...form, sourceTitle: e.target.value })} placeholder="例如：2026-08-14 抖音结算明细" /></label>
-            <label className="check-field wide"><input type="checkbox" checked={form.privacyConfirmed} onChange={(e) => setForm({ ...form, privacyConfirmed: e.target.checked })} /><span>我已确认待上传文件不含完整姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
-            <label className="wide evidence-file"><span>结算或成本证据文件（先脱敏）</span><input type="file" disabled={!form.privacyConfirmed} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void api.uploadEvidence(file, true).then(setCostEvidence).catch((error: unknown) => onError(error instanceof Error ? error.message : '证据文件保全失败')); }} /><small>{costEvidence ? `已保全 ${costEvidence.originalName} · 校验尾号 ${costEvidence.sha256.slice(-8)}` : '未选择文件，不会保存本笔记录'}</small></label>
             <label className="check-field wide"><input type="checkbox" checked={form.newCustomerConfirmed} onChange={(e) => setForm({ ...form, newCustomerConfirmed: e.target.checked })} /><span>我已在平台历史订单中人工核对：这是首次消费候选新客</span></label>
-            <label className="wide evidence-file"><span>新客历史核对证据（必须脱敏）</span><input type="file" disabled={!form.privacyConfirmed || !form.newCustomerConfirmed} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void api.uploadEvidence(file, true).then(setNewCustomerEvidence).catch((error: unknown) => onError(error instanceof Error ? error.message : '新客证据保全失败')); }} /><small>{newCustomerEvidence ? `已保全 ${newCustomerEvidence.originalName} · 校验尾号 ${newCustomerEvidence.sha256.slice(-8)}` : '未选择新客核对证据，不计入候选新客'}</small></label>
+            <label className="check-field wide"><input type="checkbox" checked={form.recordConfirmed} onChange={(e) => setForm({ ...form, recordConfirmed: e.target.checked })} /><span>我确认：这笔订单真实发生、服务已如实履约（不需要上传文件）</span></label>
+            <label className="check-field wide"><input type="checkbox" checked={form.costConfirmed} onChange={(e) => setForm({ ...form, costConfirmed: e.target.checked })} /><span>我确认：成本字段按真实口径填写，未知不当作零</span></label>
             {fields.map(([key, label]) => <label key={key}><span>{label}（元）</span><input type="number" min="0" step="0.01" value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} placeholder="数据未取得" /></label>)}
             <label><span>真实首单付款时间</span><input type="datetime-local" value={form.firstPaidAt} onChange={(e) => setForm({ ...form, firstPaidAt: e.target.value })} /></label>
             <label><span>真实履约时间</span><input type="datetime-local" value={form.pickedUpAt} onChange={(e) => setForm({ ...form, pickedUpAt: e.target.value })} /></label>
@@ -1107,11 +1102,11 @@ function Progress({ label, value, goal }: { label: string; value: number; goal: 
 
 /** 每项开播准备「怎么解决」的一句话说清（客户看得懂的步骤） */
 const GATE_TIPS: Record<string, string> = {
-  'official-written': '向抖音官方客服要书面答复截图，在下面「平台规则书面答复」上传。',
+  'self-offer': '在「导入商品快照」里填商品名和价格，勾选「商品真实存在、价格与店内一致」。',
   'service-area': '已在首次启动时确认；要修改需重新填写初始化信息。',
-  cost: '把完整成本清单（人工/耗材/值守等）脱敏后，在「完整成本记录」上传。',
+  'self-cost': '在「导入商品快照」里勾选「按真实成本经营，不构成超低价」。',
   hardware: '点「打开直播输出窗口」：①选俯拍不露脸 ②试听中文语音 ③确认真人可接管。',
-  asset: '把素材授权凭证截图，在「素材权利证明」上传。',
+  'self-asset': '在「导入商品快照」里勾选「直播素材都是自有拍摄或已获授权」。',
   authorization: '在抖音直播伴侣人工开播后，点下方「我已在直播伴侣人工开播」。',
 };
 
@@ -1129,20 +1124,17 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   onTransition: (state: LiveSession['state'], reason: string | null, confirmed?: boolean) => void;
 }) {
   const [showOffer, setShowOffer] = useState(false);
-  const [evidencePrivacy, setEvidencePrivacy] = useState(false);
-  const [offer, setOffer] = useState({ productId: '', title: '新客常规服务｜1次', price: '9.90', regularPrice: '', merchantSource: '', merchantUri: '', merchantSha: '', officialTitle: '', officialUri: '', officialSha: '', costTitle: '', costUri: '', costSha: '', assetTitle: '', assetUri: '', assetSha: '' });
+  const [offer, setOffer] = useState({ productId: '', title: '新客常规服务｜1次', price: '9.90', regularPrice: '', offerConfirmed: false, costConfirmed: false, assetConfirmed: false });
   const [saving, setSaving] = useState(false);
 
   async function saveOffer() {
-    if (!offer.productId.trim() || !offer.title.trim() || !offer.merchantSource.trim() || !offer.merchantUri.trim() || !offer.merchantSha.trim()) return onError('商品ID、标题和已保全的商户商品来源文件必须完整。');
+    if (!offer.productId.trim() || !offer.title.trim() || !offer.price.trim()) return onError('商品ID、商品标题和价格必须填写。');
+    if (!offer.offerConfirmed || !offer.costConfirmed || !offer.assetConfirmed) return onError('请先勾选三项自查确认：商品真实、按真实成本经营、素材自有或已授权。');
     setSaving(true);
     try {
       const capturedAt = new Date().toISOString();
       const validUntil = new Date(Date.now() + 7 * 86_400_000).toISOString();
-      const refs: OfferSnapshot['evidenceRefs'] = [{ id: crypto.randomUUID(), title: offer.merchantSource.trim(), sourceType: 'MERCHANT_RECORD', sourceUri: offer.merchantUri.trim(), capturedAt, validUntil, sha256: offer.merchantSha.trim() }];
-      if (offer.officialTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.officialTitle.trim(), sourceType: 'OFFICIAL_WRITTEN', sourceUri: offer.officialUri.trim() || null, capturedAt, validUntil, sha256: offer.officialSha.trim() || null });
-      if (offer.costTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.costTitle.trim(), sourceType: 'COST_RECORD', sourceUri: offer.costUri.trim() || null, capturedAt, validUntil, sha256: offer.costSha.trim() || null });
-      if (offer.assetTitle.trim()) refs.push({ id: crypto.randomUUID(), title: offer.assetTitle.trim(), sourceType: 'AUTHORIZED_ASSET', sourceUri: offer.assetUri.trim() || null, capturedAt, validUntil, sha256: offer.assetSha.trim() || null });
+      // v8.1 起不再上传文件证据：evidenceRefs 留空，改由 selfChecks 自查确认把关
       await api.saveOffer({
         id: crypto.randomUUID(),
         productId: offer.productId.trim(),
@@ -1151,7 +1143,12 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
         regularPriceCents: offer.regularPrice.trim() ? Math.round(Number(offer.regularPrice) * 100) : null,
         shoeTypes: data.config.productCategories.length > 0 ? data.config.productCategories : ['常规品类'],
         serviceAreas: data.config.serviceAreas.length > 0 ? data.config.serviceAreas : [],
-        evidenceRefs: refs,
+        evidenceRefs: [],
+        selfChecks: {
+          offerConfirmed: offer.offerConfirmed,
+          costConfirmed: offer.costConfirmed,
+          assetConfirmed: offer.assetConfirmed,
+        },
         capturedAt,
         validUntil,
         status: 'ACTIVE',
@@ -1175,18 +1172,16 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 
       {showOffer && (
         <section className="offer-form-section">
-          <div className="panel-heading"><PackageCheck aria-hidden="true" /><div><h2>冻结开播商品</h2><p>本工具只保存快照，不会向抖音修改商品。官方、成本和素材证据为空时会继续阻断。</p></div></div>
-          <p className="evidence-intro">在这里一次性做完「商品 + 三份材料」：填商品信息、传商户来源文件，再把三份材料（书面答复、成本、素材）一起传上。每份材料只需 <b>选一个文件</b>（标题可空，自动用文件名），文件由程序自动复制到本机证据库并计算校验值。<b>支持格式：PNG / JPG / PDF / TXT / JSON</b>。</p>
-          <label className="check-field evidence-global-check"><input type="checkbox" checked={evidencePrivacy} onChange={(event) => setEvidencePrivacy(event.target.checked)} /><span>我已逐份核对：下面所有上传文件都不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
+          <div className="panel-heading"><PackageCheck aria-hidden="true" /><div><h2>冻结开播商品</h2><p>只需填商品信息并勾选三项自查，不用上传任何文件、不用找客服。</p></div></div>
+          <p className="evidence-intro">AI 播报时会照着这里的<b>商品名和价格</b>说，请填真实在售的商品。下面三项自查是合规底线，勾选即代表你确认无误——<b>不需要上传文件、不需要截图、不需要客服答复</b>。</p>
           <div className="offer-form">
-            <label><span>商品ID</span><input value={offer.productId} onChange={(e) => setOffer({ ...offer, productId: e.target.value })} /></label>
+            <label><span>商品ID（选填）</span><input value={offer.productId} onChange={(e) => setOffer({ ...offer, productId: e.target.value })} placeholder="在抖音后台商品页可找到" /></label>
             <label className="wide"><span>商品标题</span><input value={offer.title} onChange={(e) => setOffer({ ...offer, title: e.target.value })} /></label>
             <label><span>新客成交价（元）</span><input type="number" min="0.01" step="0.01" value={offer.price} onChange={(e) => setOffer({ ...offer, price: e.target.value })} /></label>
             <label><span>正常价（元，可空）</span><input type="number" min="0.01" step="0.01" value={offer.regularPrice} onChange={(e) => setOffer({ ...offer, regularPrice: e.target.value })} placeholder="从有效商品导入" /></label>
-            <EvidenceInputs title="商户商品来源（必填并上传文件）" help="是什么：证明「这个商品确实存在、是你店铺里在卖的」。去哪拿：抖音后台 → 小店/商品管理 → 找到这个商品页，截图时带上商品ID和店铺名。上传格式：截图 PNG/JPG，或导出的 txt/json。" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
-            <EvidenceInputs title="平台规则书面答复" help="是什么：抖音官方客服对你开播口径的书面答复（比如到店/上门取送怎么描述、商品怎么命名）。去哪拿：在抖音商家客服/在线客服里提问，把客服答复页面截图保存。上传格式：截图 PNG/JPG 或 PDF。" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
-            <EvidenceInputs title="完整成本记录" help="是什么：这份商品从接单到履约的全部成本清单（材料、人工、耗材、值守、返工、售后）。去哪拿：按你实际经营自己整理成一张表。上传格式：表格截图 PNG/JPG，或 PDF/txt。" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
-            <EvidenceInputs title="素材权利证明" help="是什么：直播画面用到的图片/视频/音乐/语音素材的使用授权（购买记录、授权书，或自己原创的说明）。去哪拿：素材购买凭证或授权文件。上传格式：截图 PNG/JPG 或 PDF。" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} privacyConfirmed={evidencePrivacy} />
+            <label className="check-field wide"><input type="checkbox" checked={offer.offerConfirmed} onChange={(e) => setOffer({ ...offer, offerConfirmed: e.target.checked })} /><span>我确认：这个商品真实存在、价格与店内一致（AI 会照着这个价格播报）</span></label>
+            <label className="check-field wide"><input type="checkbox" checked={offer.costConfirmed} onChange={(e) => setOffer({ ...offer, costConfirmed: e.target.checked })} /><span>我确认：售价按真实成本经营，不构成超低价</span></label>
+            <label className="check-field wide"><input type="checkbox" checked={offer.assetConfirmed} onChange={(e) => setOffer({ ...offer, assetConfirmed: e.target.checked })} /><span>我确认：直播画面用到的图片/视频/音乐/语音都是自有拍摄或已获授权</span></label>
             <div className="form-actions wide"><button className="secondary-action" type="button" onClick={() => setShowOffer(false)}>取消</button><button className="primary-action" type="button" disabled={saving} onClick={() => void saveOffer()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存7天有效快照</button></div>
           </div>
         </section>
@@ -1233,69 +1228,8 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   );
 }
 
-function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError, privacyConfirmed }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void; privacyConfirmed: boolean }) {
-  const [askFirst, setAskFirst] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const stored = uriName && shaName && Boolean(value[uriName] && value[shaName]);
-
-  function handlePickFile() {
-    if (uploading) return;
-    if (!privacyConfirmed) {
-      setAskFirst(true);
-      return;
-    }
-    setAskFirst(false);
-    fileRef.current?.click();
-  }
-
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    // 证据文件以内嵌 base64 上传（体积约膨胀 1/3），单文件上限 30MB，避免撞服务端请求体限制
-    if (file.size > 30 * 1024 * 1024) {
-      const message = '文件超过 30MB，请先压缩（缩小截图尺寸或另存为 JPG/PDF）后再上传';
-      setUploadError(message);
-      onError(message);
-      return;
-    }
-    setUploading(true);
-    setUploadError(null);
-    setAskFirst(false);
-    try {
-      const saved = await api.uploadEvidence(file, true);
-      onChange({ ...value, [uriName!]: saved.sourceUri, [shaName!]: saved.sha256, [name]: value[name] || saved.originalName });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '证据文件保全失败';
-      setUploadError(message);
-      onError(message);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return <div className="evidence-input wide">
-    <label><span>{title}</span><input value={String(value[name])} onChange={(e) => onChange({ ...value, [name]: e.target.value })} placeholder="证据标题；没有就保持空白" /></label>
-    {help && <p className="evidence-help">{help}</p>}
-    {uriName && shaName && <>
-      {askFirst && <p className="evidence-ask" role="alert">⚠ 请先勾选表单顶部的「脱敏确认」，然后点这里就能选择文件了。</p>}
-      {uploadError && <p className="evidence-error" role="alert">✗ 保全失败：{uploadError}</p>}
-      <div className="evidence-file">
-        <button type="button" className={uploading ? 'uploading' : stored ? 'confirmed' : privacyConfirmed ? '' : 'locked'} onClick={handlePickFile} disabled={uploading}>
-          {uploading ? <LoaderCircle className="spin" aria-hidden="true" /> : stored ? <Check aria-hidden="true" /> : <FileUp aria-hidden="true" />}
-          {uploading ? '正在保全文件…' : stored ? '文件已保全' : privacyConfirmed ? '选择已脱敏的本机证据文件' : '选择文件（需先勾选脱敏确认）'}
-        </button>
-        <input ref={fileRef} type="file" style={{ display: 'none' }} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => void handleFileChange(event)} />
-        <small className={stored ? 'ok' : ''}>{stored ? `✓ 已保全到本机证据库 · 校验尾号 ${String(value[shaName]).slice(-8)}` : uploading ? '正在复制文件并计算校验值，请稍候…' : '选择文件后，程序会自动复制到本机证据库并计算校验值'}</small>
-      </div>
-    </>}
-  </div>;
-}
-
 function emptyOfferForm() {
-  return { productId: '', title: '', price: '', regularPrice: '', merchantSource: '', merchantUri: '', merchantSha: '', officialTitle: '', officialUri: '', officialSha: '', costTitle: '', costUri: '', costSha: '', assetTitle: '', assetUri: '', assetSha: '' };
+  return { productId: '', title: '', price: '', regularPrice: '', offerConfirmed: false, costConfirmed: false, assetConfirmed: false };
 }
 
 function Audit({ entries }: { entries: AuditEntry[] }) {

@@ -8,6 +8,7 @@ const base: OfferSnapshot = {
   id: '11111111-1111-4111-8111-111111111111', productId: 'offer-1', title: '常规服务',
   priceCents: 990, regularPriceCents: 3900, shoeTypes: ['常规品类'], serviceAreas: ['主城区'],
   evidenceRefs: [{ id: 'merchant', title: '商品记录', sourceType: 'MERCHANT_RECORD', sourceUri: null, capturedAt: now.toISOString(), validUntil: '2026-08-15T00:00:00.000Z', sha256: null }],
+  selfChecks: { offerConfirmed: true, costConfirmed: true, assetConfirmed: true },
   capturedAt: now.toISOString(), validUntil: '2026-08-15T00:00:00.000Z', status: 'ACTIVE',
 };
 

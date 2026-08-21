@@ -1,4 +1,4 @@
-import type { EvidenceSourceType, OfferSnapshot, PreflightCheck, StoreConfig } from '@liveops/live-contracts';
+import type { OfferSnapshot, PreflightCheck, StoreConfig } from '@liveops/live-contracts';
 
 export interface PreflightInput {
   activeOffer: OfferSnapshot | null;
@@ -12,16 +12,18 @@ export interface PreflightInput {
   takeoverReady: boolean;
 }
 
-function hasEvidence(offer: OfferSnapshot | null, sourceType: EvidenceSourceType): boolean {
-  return Boolean(offer?.evidenceRefs.some((ref) => ref.sourceType === sourceType && ref.sha256));
+/** 商家自查确认（v8.1 起替代文件上传：商品真实性 / 成本真实 / 素材自有） */
+function selfChecked(offer: OfferSnapshot | null, key: 'offerConfirmed' | 'costConfirmed' | 'assetConfirmed'): boolean {
+  return offer?.selfChecks?.[key] === true;
 }
 
 /**
- * 开播硬门禁（通用合规模板，任务E 由原品牌专属改大众化）。状态含义：
+ * 开播硬门禁（通用合规模板）。状态含义：
  * - PASS：已满足
- * - BLOCKED：必需的书面/成本/素材证据缺失，硬阻断
+ * - BLOCKED：必需的自查确认/服务区缺失，硬阻断
  * - MANUAL_REQUIRED：需在本机或直播伴侣内人工确认（摄像头/语音/接管、当次授权）
- * 服务区门禁不再「非空即过」：必须商家在首次启动向导显式勾选确认（settings.serviceAreasConfirmed）。
+ * 服务区门禁必须商家在首次启动向导显式勾选确认（settings.serviceAreasConfirmed）。
+ * v8.1 起不再要求上传文件证据与平台客服书面答复，改为商家逐项自查确认。
  */
 export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
   const { activeOffer, settings } = input;
@@ -31,12 +33,12 @@ export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
 
   return [
     {
-      id: 'official-written',
-      label: '平台规则书面确认',
-      status: hasEvidence(activeOffer, 'OFFICIAL_WRITTEN') ? 'PASS' : 'BLOCKED',
-      detail: hasEvidence(activeOffer, 'OFFICIAL_WRITTEN')
-        ? '已绑定平台规则书面确认证据'
-        : '缺少当前账号/商品/履约对应的平台规则书面确认答复',
+      id: 'self-offer',
+      label: '商品真实性与价格确认',
+      status: selfChecked(activeOffer, 'offerConfirmed') ? 'PASS' : 'BLOCKED',
+      detail: selfChecked(activeOffer, 'offerConfirmed')
+        ? '已在商品快照中确认商品真实存在且价格如实'
+        : '需在商品快照中勾选确认：商品真实存在、价格与店内一致',
       required: true,
     },
     {
@@ -49,12 +51,12 @@ export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
       required: true,
     },
     {
-      id: 'cost',
-      label: '平台净结算与完整成本',
-      status: hasEvidence(activeOffer, 'COST_RECORD') ? 'PASS' : 'BLOCKED',
-      detail: hasEvidence(activeOffer, 'COST_RECORD')
-        ? '已绑定平台净结算与完整成本证据'
-        : '缺少平台净结算、履约/生产/耗材/值守/返工/售后成本证据',
+      id: 'self-cost',
+      label: '成本真实性确认',
+      status: selfChecked(activeOffer, 'costConfirmed') ? 'PASS' : 'BLOCKED',
+      detail: selfChecked(activeOffer, 'costConfirmed')
+        ? '已在商品快照中确认按真实成本经营'
+        : '需在商品快照中勾选确认：售价按真实成本经营，不构成超低价',
       required: true,
     },
     {
@@ -67,12 +69,12 @@ export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
       required: true,
     },
     {
-      id: 'asset',
-      label: '素材权利与 AI 标识',
-      status: hasEvidence(activeOffer, 'AUTHORIZED_ASSET') ? 'PASS' : 'BLOCKED',
-      detail: hasEvidence(activeOffer, 'AUTHORIZED_ASSET')
-        ? '已绑定素材权利与 AI 标识审核证据'
-        : '缺少已授权素材与 AI 主持标识审核记录',
+      id: 'self-asset',
+      label: '素材与 AI 标识确认',
+      status: selfChecked(activeOffer, 'assetConfirmed') ? 'PASS' : 'BLOCKED',
+      detail: selfChecked(activeOffer, 'assetConfirmed')
+        ? '已在商品快照中确认直播素材自有或已授权'
+        : '需在商品快照中勾选确认：直播画面素材为自有拍摄或已取得授权',
       required: true,
     },
     {
