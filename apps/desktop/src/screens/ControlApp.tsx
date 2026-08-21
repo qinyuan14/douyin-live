@@ -1043,15 +1043,16 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       {showOffer && (
         <section className="offer-form-section">
           <div className="panel-heading"><PackageCheck aria-hidden="true" /><div><h2>冻结开播商品</h2><p>本工具只保存快照，不会向抖音修改商品。官方、成本和素材证据为空时会继续阻断。</p></div></div>
+          <p className="evidence-intro">下面的每一份材料都只需两步：<b>填一个标题</b> + <b>选一个文件</b>。文件由程序自动复制到本机证据库并计算校验值，之后随时能核对来源。<b>支持格式：PNG / JPG / PDF / TXT / JSON</b>。上传前请确认文件里不含姓名、电话、地址、头像、订单号、券码或聊天账号（勾选脱敏确认后才能选文件）。</p>
           <div className="offer-form">
             <label><span>商品ID</span><input value={offer.productId} onChange={(e) => setOffer({ ...offer, productId: e.target.value })} /></label>
             <label className="wide"><span>商品标题</span><input value={offer.title} onChange={(e) => setOffer({ ...offer, title: e.target.value })} /></label>
             <label><span>新客成交价（元）</span><input type="number" min="0.01" step="0.01" value={offer.price} onChange={(e) => setOffer({ ...offer, price: e.target.value })} /></label>
             <label><span>正常价（元，可空）</span><input type="number" min="0.01" step="0.01" value={offer.regularPrice} onChange={(e) => setOffer({ ...offer, regularPrice: e.target.value })} placeholder="从有效商品导入" /></label>
-            <EvidenceInputs title="商户商品来源（必填并上传文件）" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="平台规则书面答复" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="完整成本记录" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} />
-            <EvidenceInputs title="素材权利证明" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="商户商品来源（必填并上传文件）" help="是什么：证明「这个商品确实存在、是你店铺里在卖的」。去哪拿：抖音后台 → 小店/商品管理 → 找到这个商品页，截图时带上商品ID和店铺名。上传格式：截图 PNG/JPG，或导出的 txt/json。" name="merchantSource" uriName="merchantUri" shaName="merchantSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="平台规则书面答复" help="是什么：抖音官方客服对你开播口径的书面答复（比如到店/上门取送怎么描述、商品怎么命名）。去哪拿：在抖音商家客服/在线客服里提问，把客服答复页面截图保存。上传格式：截图 PNG/JPG 或 PDF。" name="officialTitle" uriName="officialUri" shaName="officialSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="完整成本记录" help="是什么：这份商品从接单到履约的全部成本清单（材料、人工、耗材、值守、返工、售后）。去哪拿：按你实际经营自己整理成一张表。上传格式：表格截图 PNG/JPG，或 PDF/txt，务必先脱敏。" name="costTitle" uriName="costUri" shaName="costSha" value={offer} onChange={setOffer} onError={onError} />
+            <EvidenceInputs title="素材权利证明" help="是什么：直播画面用到的图片/视频/音乐/语音素材的使用授权（购买记录、授权书，或自己原创的说明）。去哪拿：素材购买凭证或授权文件。上传格式：截图 PNG/JPG 或 PDF。" name="assetTitle" uriName="assetUri" shaName="assetSha" value={offer} onChange={setOffer} onError={onError} />
             <div className="form-actions wide"><button className="secondary-action" type="button" onClick={() => setShowOffer(false)}>取消</button><button className="primary-action" type="button" disabled={saving} onClick={() => void saveOffer()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存7天有效快照</button></div>
           </div>
         </section>
@@ -1099,11 +1100,12 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   );
 }
 
-function EvidenceInputs({ title, name, uriName, shaName, value, onChange, onError }: { title: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void }) {
+function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void }) {
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const stored = uriName && shaName && Boolean(value[uriName] && value[shaName]);
   return <div className="evidence-input wide">
     <label><span>{title}</span><input value={String(value[name])} onChange={(e) => onChange({ ...value, [name]: e.target.value })} placeholder="证据标题；没有就保持空白" /></label>
+    {help && <p className="evidence-help">{help}</p>}
     {uriName && shaName && <><label className="check-field"><input type="checkbox" checked={privacyConfirmed} onChange={(event) => setPrivacyConfirmed(event.target.checked)} /><span>已确认文件不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label><label className="evidence-file"><span>选择已脱敏的本机证据文件</span><input type="file" disabled={!privacyConfirmed} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void api.uploadEvidence(file, true).then((saved) => onChange({ ...value, [uriName]: saved.sourceUri, [shaName]: saved.sha256, [name]: value[name] || saved.originalName })).catch((error: unknown) => onError(error instanceof Error ? error.message : '证据文件保全失败')); }} /><small>{stored ? `文件已保全 · 校验尾号 ${String(value[shaName]).slice(-8)}` : '程序自动复制到本地证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small></label></>}
   </div>;
 }
