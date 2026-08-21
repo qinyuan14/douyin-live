@@ -61,15 +61,22 @@ type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null;
 /** 新手引导「已看过」的本地标记（每台电脑记一次，可手动重新打开） */
 const GUIDE_SEEN_KEY = 'liveops-guide-seen-v1';
 
-const NAV_ITEMS: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }> = [
+/** 侧边栏主功能（小白常用）：一键开播 / 开播准备 / 直播流程 */
+const NAV_MAIN: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: '今日开播', icon: LayoutDashboard },
+  { id: 'preflight', label: '开播准备', icon: ClipboardCheck },
   { id: 'director', label: '直播流程', icon: Radio },
+];
+
+/** 侧边栏「更多功能」（默认收起，小白看不到）：问答 / 订单 / 日志 / 备份 */
+const NAV_MORE: Array<{ id: Page; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'qa', label: '顾客问答', icon: ShieldCheck },
   { id: 'orders', label: '经营记录', icon: ReceiptText },
-  { id: 'preflight', label: '开播准备', icon: ClipboardCheck },
   { id: 'audit', label: '操作日志', icon: History },
   { id: 'backups', label: '数据备份', icon: DatabaseBackup },
 ];
+
+const ALL_NAV = [...NAV_MAIN, ...NAV_MORE];
 
 function formatMoney(value: number | null): string {
   return value === null ? '数据未取得' : `¥${(value / 100).toFixed(2)}`;
@@ -103,6 +110,8 @@ export function ControlApp() {
   const [voiceTestPending, setVoiceTestPending] = useState(false);
   const [voiceTestGenerated, setVoiceTestGenerated] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [launchOpen, setLaunchOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // 首次进入值班台（完成初始化向导后）弹出新手引导；关掉后记住，可随时从任务清单重新打开
   useEffect(() => {
@@ -230,6 +239,30 @@ export function ControlApp() {
     }
   }
 
+  /** 一键开播：自动建场次（如有）→ 全部就绪进开播确认，否则弹引导补齐 */
+  async function handleOneClickLive() {
+    setWorking(true);
+    try {
+      let session = data?.session ?? null;
+      if (!session || ['STOPPED', 'COMPLETED'].includes(session.state)) {
+        await api.createSession();
+        const result = await api.bootstrap();
+        setData(result);
+        session = result.session;
+      }
+      if (!session) return;
+      if (data?.preflight.blocked || data?.preflight.manualRequired) {
+        setLaunchOpen(true);
+      } else {
+        setConfirmOpen(true);
+      }
+    } catch (error) {
+      setNotice({ tone: 'error', message: error instanceof Error ? error.message : '开播检查失败' });
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function acknowledgePresence() {
     if (!data?.session) return;
     setWorking(true);
@@ -347,13 +380,23 @@ export function ControlApp() {
           <div><strong>实景直播</strong><span>经营系统</span></div>
         </div>
         <nav aria-label="主要功能">
-          {NAV_ITEMS.map((item) => {
+          {NAV_MAIN.map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.id} className={page === item.id ? 'active' : ''} type="button" onClick={() => setPage(item.id)}>
                 <Icon aria-hidden="true" />
                 <span>{item.label}</span>
                 {item.id === 'preflight' && data.preflight.blocked && <i className="nav-alert" />}
+              </button>
+            );
+          })}
+          <div className="nav-group-label">更多功能</div>
+          {NAV_MORE.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button key={item.id} className={page === item.id ? 'active' : ''} type="button" onClick={() => setPage(item.id)}>
+                <Icon aria-hidden="true" />
+                <span>{item.label}</span>
               </button>
             );
           })}
@@ -368,7 +411,7 @@ export function ControlApp() {
       <div className="workspace">
         <header className="topbar">
           <div>
-            <h1>{NAV_ITEMS.find((item) => item.id === page)?.label}</h1>
+            <h1>{ALL_NAV.find((item) => item.id === page)?.label}</h1>
             <p>{pageSubtitle(page)}</p>
           </div>
           <div className="topbar-actions">
@@ -397,6 +440,23 @@ export function ControlApp() {
           />
         )}
 
+        {launchOpen && (
+          <LaunchGuideModal
+            data={data}
+            activeOffer={activeOffer}
+            onClose={() => setLaunchOpen(false)}
+            onNavigate={(next) => { setLaunchOpen(false); setPage(next); }}
+          />
+        )}
+
+        {confirmOpen && (
+          <LaunchConfirmModal
+            working={working}
+            onClose={() => setConfirmOpen(false)}
+            onConfirm={() => void transition('LIVE', null, true).then(() => setConfirmOpen(false))}
+          />
+        )}
+
         <section className="page-body">
           {page === 'overview' && (
             <Overview
@@ -408,6 +468,7 @@ export function ControlApp() {
               onCreate={() => void createSession()}
               onPresence={() => void acknowledgePresence()}
               onRehearsal={toggleRehearsal}
+              onOneClick={() => void handleOneClickLive()}
               onNavigate={setPage}
               onShowGuide={() => setShowGuide(true)}
             />
@@ -475,7 +536,7 @@ function pageSubtitle(page: Page): string {
   return subtitles[page];
 }
 
-function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCreate, onPresence, onRehearsal, onNavigate, onShowGuide }: {
+function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCreate, onPresence, onRehearsal, onOneClick, onNavigate, onShowGuide }: {
   data: BootstrapData;
   activeOffer: OfferSnapshot | null;
   passedChecks: number;
@@ -484,14 +545,35 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
   onCreate: () => void;
   onPresence: () => void;
   onRehearsal: () => void;
+  onOneClick: () => void;
   onNavigate: (page: Page) => void;
   onShowGuide: () => void;
 }) {
   const session = data.session;
   const tasks = buildTasks(data, activeOffer);
   const doneCount = tasks.filter((task) => task.status === 'done').length;
+  const ready = !data.preflight.blocked && !data.preflight.manualRequired;
   return (
     <div className="overview-grid">
+      <section className="one-click-card">
+        <div className="one-click-info">
+          <span className="task-kicker">一键开播</span>
+          <h2>{data.config.storeName || '你的店'} · 今晚直播</h2>
+          <p>
+            {ready
+              ? '所有准备都完成了，点一下进入开播确认，最后一步在直播伴侣里人工开播。'
+              : `还差 ${tasks.filter((task) => task.status !== 'done').length} 件事，点一下我带你一步步补齐，全程不用记步骤。`}
+          </p>
+        </div>
+        <div className="one-click-side">
+          <div className="readiness"><strong>{passedChecks}</strong><span>/ {data.preflight.checks.length} 项就绪</span></div>
+          <button className="one-click-button" type="button" onClick={onOneClick} disabled={working}>
+            {working ? <LoaderCircle className="spin" aria-hidden="true" /> : <Play aria-hidden="true" />}
+            一键开播
+          </button>
+        </div>
+      </section>
+
       <section className="task-checklist">
         <div className="task-heading">
           <div>
@@ -696,10 +778,64 @@ function GuideModal({ onClose, onStart }: { onClose: () => void; onStart: (page:
           <li><b>本地演练一遍</b><span>在「直播流程」试听 AI 两小时播报，检查声音和字幕</span></li>
           <li><b>正式开播</b><span>全部准备完成后，再上抖音直播伴侣人工开播</span></li>
         </ol>
-        <p className="guide-note">首页的「开播任务」清单会一直提醒你做到哪一步，做完自动打勾；看不懂随时点「重新看引导」。</p>
+        <p className="guide-note">首页的「一键开播」会带你一步一步做完，看不懂随时点「重新看引导」。</p>
         <div className="guide-actions">
           <button className="primary-action" type="button" onClick={() => { onStart('preflight'); onClose(); }}>带我去看开播准备</button>
           <button className="secondary-action" type="button" onClick={onClose}>先逛逛</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 一键开播未就绪时：列出还差的事，点「去完成」直达对应页面 */
+function LaunchGuideModal({ data, activeOffer, onClose, onNavigate }: {
+  data: BootstrapData;
+  activeOffer: OfferSnapshot | null;
+  onClose: () => void;
+  onNavigate: (page: Page) => void;
+}) {
+  const tasks = buildTasks(data, activeOffer);
+  const pending = tasks.filter((task) => task.status !== 'done');
+  return (
+    <div className="guide-overlay" onClick={onClose}>
+      <div className="guide-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>还差 {pending.length} 件事，做完就能开播</h2>
+        <p>不用记步骤，点「去完成」我带你到对应页面，做完自动打勾：</p>
+        <ol className="guide-steps launch-steps">
+          {tasks.map((task) => (
+            <li key={task.id} className={task.status === 'done' ? 'done' : 'pending'}>
+              <b>{task.label}</b>
+              <span>{task.status === 'done' ? '✓ 已完成' : task.how}</span>
+              {task.status !== 'done' && (
+                <button type="button" className="launch-go" onClick={() => onNavigate(task.page)}>去完成</button>
+              )}
+            </li>
+          ))}
+        </ol>
+        <div className="guide-actions">
+          <button className="secondary-action" type="button" onClick={onClose}>等一下再看</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 一键开播全部就绪：最后一步在直播伴侣人工开播 */
+function LaunchConfirmModal({ working, onConfirm, onClose }: { working: boolean; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div className="guide-overlay" onClick={onClose}>
+      <div className="guide-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>准备就绪，最后一步由你完成</h2>
+        <p className="launch-confirm-steps">
+          1. 打开抖音直播伴侣，把画面源选为本机「直播输出窗口」并点「开始直播」<br />
+          2. 回到这里，点下面的按钮确认——AI 才会开始播报。
+        </p>
+        <div className="guide-actions">
+          <button className="primary-action" type="button" disabled={working} onClick={onConfirm}>
+            {working ? <LoaderCircle className="spin" aria-hidden="true" /> : <Play aria-hidden="true" />}我已在直播伴侣人工开播
+          </button>
+          <button className="secondary-action" type="button" onClick={onClose}>稍后</button>
         </div>
       </div>
     </div>
