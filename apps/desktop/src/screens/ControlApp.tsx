@@ -711,7 +711,7 @@ interface TaskItem {
 function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): TaskItem[] {
   const statusById = new Map(data.preflight.checks.map((check) => [check.id, check.status]));
   const evidenceDone = ['self-offer', 'self-cost', 'self-asset'].every((id) => statusById.get(id) === 'PASS');
-  const hardwareDone = data.hardware.cameraReady && data.hardware.voiceReady && data.hardware.takeoverReady;
+  const hardwareDone = data.hardware.cameraFramingConfirmed && data.hardware.voiceReady && data.hardware.takeoverReady;
   const rehearsalReady = data.runSheet.some((segment) => segment.approved);
   const canGoLive = !data.preflight.blocked && !data.preflight.manualRequired;
 
@@ -736,7 +736,7 @@ function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): Tas
     {
       id: 'hardware',
       label: '确认本机设备',
-      how: hardwareDone ? '摄像头（不露脸）、中文语音、真人接管都已确认' : '点「打开直播输出窗口」：选俯拍摄像头不露脸、试听中文语音、确认真人声音可接管',
+      how: hardwareDone ? '数字人画面、中文语音、真人接管都已确认' : '点「打开直播输出窗口」：确认数字人形象无真人出镜、试听中文语音、确认真人声音可接管',
       status: hardwareDone ? 'done' : 'todo',
       page: 'preflight',
     },
@@ -1105,7 +1105,7 @@ const GATE_TIPS: Record<string, string> = {
   'self-offer': '在「导入商品快照」里填商品名和价格，勾选「商品真实存在、价格与店内一致」。',
   'service-area': '已在首次启动时确认；要修改需重新填写初始化信息。',
   'self-cost': '在「导入商品快照」里勾选「按真实成本经营，不构成超低价」。',
-  hardware: '点「打开直播输出窗口」：①选俯拍不露脸 ②试听中文语音 ③确认真人可接管。',
+  hardware: '点「打开直播输出窗口」：①确认画面为数字人形象（无真人出镜）②试听中文语音 ③确认真人可接管。',
   'self-asset': '在「导入商品快照」里勾选「直播素材都是自有拍摄或已获授权」。',
   authorization: '在抖音直播伴侣人工开播后，点下方「我已在直播伴侣人工开播」。',
 };
@@ -1220,9 +1220,9 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       </section>
 
       <section className="hardware-confirm">
-        <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>本机预览确认</h2><p>这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
+        <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>直播监护确认（数字人模式）</h2><p>数字人直播不连接真实摄像头；只需确认画面合规、声音线路正确、真人可随时接管。这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
         <div className="hardware-buttons">
-          <button className={data.hardware.cameraReady ? 'confirmed' : ''} type="button" disabled><Camera />{data.hardware.cameraReady ? `俯拍已确认：${data.hardware.cameraLabel ?? '专用设备'}` : '请在直播输出窗口选择设备并确认无人脸'}</button>
+          <button className={data.hardware.cameraFramingConfirmed ? 'confirmed' : ''} type="button" onClick={() => void onHardware({ cameraFramingConfirmed: !data.hardware.cameraFramingConfirmed })}><ShieldCheck />画面形态{data.hardware.cameraFramingConfirmed ? '已确认' : '确认数字人形象·无真人出镜'}</button>
           <button className={data.hardware.voiceReady ? 'confirmed' : ''} type="button" disabled={voiceTestPending} onClick={voiceTestGenerated && !data.hardware.voiceReady ? onVoiceConfirm : onVoiceTest}><Volume2 />中文语音{voiceTestPending ? '试听中' : data.hardware.voiceReady ? '员工已确认' : voiceTestGenerated ? '确认听见且线路正确' : '开始试听'}</button>
           <button className={data.hardware.takeoverReady ? 'confirmed' : ''} type="button" onClick={() => void onHardware({ takeoverReady: !data.hardware.takeoverReady })}><Mic2 />真人声音接管{data.hardware.takeoverReady ? '已确认' : '待确认'}</button>
         </div>

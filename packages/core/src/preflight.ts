@@ -27,7 +27,9 @@ function selfChecked(offer: OfferSnapshot | null, key: 'offerConfirmed' | 'costC
  */
 export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
   const { activeOffer, settings } = input;
-  const hardwareReady = input.cameraReady && input.voiceReady && input.takeoverReady;
+  // 数字人模式（v12.1）：不要求连接真实摄像头；确认画面形态合规（数字人形象、无真人出镜）、
+  // 中文语音可闻、真人随时可接管（平台对 AI 直播的真人监护底线）。
+  const hardwareReady = input.cameraFramingConfirmed && input.voiceReady && input.takeoverReady;
   const serviceAreaReady = settings.serviceAreasConfirmed && settings.serviceAreas.length > 0;
   const offerServiceAreas = activeOffer?.serviceAreas ?? [];
 
@@ -61,11 +63,11 @@ export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
     },
     {
       id: 'hardware',
-      label: '摄像头 / 语音 / 人工接管',
+      label: '画面 / 语音 / 真人监护',
       status: hardwareReady ? 'PASS' : 'MANUAL_REQUIRED',
       detail: hardwareReady
-        ? '摄像头、中文语音与人工接管均已在本地预览确认'
-        : '需在直播输出窗口确认俯拍无脸、中文语音可闻、真人接管就绪',
+        ? '数字人画面合规、中文语音与真人接管均已确认'
+        : '需确认：画面为数字人形象且无真人出镜、中文语音可闻、真人随时可接管',
       required: true,
     },
     {
