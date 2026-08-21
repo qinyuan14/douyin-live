@@ -1,8 +1,13 @@
 import type { LiveSessionState } from '@liveops/live-contracts';
 
+/**
+ * 流程精简（批次1）：开播前不再要求逐步走 DRAFT→READY→LIVE，
+ * 允许 DRAFT/PREFLIGHT_BLOCKED（legacy）直接转 LIVE；preflight 检查
+ * 只在真正转 LIVE 时执行一次（service 层）。READY 保留仅为兼容旧会话。
+ */
 const LEGAL_TRANSITIONS: Record<LiveSessionState, LiveSessionState[]> = {
-  DRAFT: ['READY', 'STOPPED'],
-  PREFLIGHT_BLOCKED: ['READY', 'STOPPED'],
+  DRAFT: ['LIVE', 'STOPPED'],
+  PREFLIGHT_BLOCKED: ['LIVE', 'STOPPED'],
   READY: ['LIVE', 'STOPPED', 'PAUSED'],
   LIVE: ['PAUSED', 'STOPPED', 'COMPLETED'],
   PAUSED: ['LIVE', 'STOPPED'],

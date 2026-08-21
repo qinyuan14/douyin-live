@@ -144,8 +144,8 @@ test('fresh installation stays fail-closed and creates an auditable draft sessio
     assert.equal(preflight.blocked, true);
     assert.equal(preflight.formalTrialUnlocked, false);
     const session = await service.createSession();
-    assert.equal(session.state, 'PREFLIGHT_BLOCKED');
-    await assert.rejects(() => service.transition(session.id, 'LIVE', null, true), /非法场次状态变化/);
+    assert.equal(session.state, 'DRAFT');
+    await assert.rejects(() => service.transition(session.id, 'LIVE', null, true), /试播门禁未全部通过/);
     const audit = await service.audit(20);
     assert.equal(audit.some((entry) => entry.action === 'SESSION_CREATED'), true);
   } finally {

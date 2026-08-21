@@ -287,7 +287,6 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     const current = await this.database.getLatestSession();
     if (current && ['DRAFT', 'PREFLIGHT_BLOCKED', 'READY', 'LIVE', 'PAUSED'].includes(current.state)) return current;
     const offer = await this.database.getActiveOffer();
-    const preflight = await this.preflight();
     const start = new Date();
     start.setHours(20, 0, 0, 0);
     if (start.getTime() < Date.now() - 7_200_000) start.setDate(start.getDate() + 1);
@@ -297,7 +296,9 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       id: crypto.randomUUID(),
       offerSnapshotId: offer?.id ?? null,
       trafficMode: 'NATURAL_ONLY',
-      state: (preflight.blocked || preflight.manualRequired) ? 'PREFLIGHT_BLOCKED' : 'DRAFT',
+      // 流程精简（批次1）：建场次不再预跑 preflight，统一恒定 DRAFT；
+      // 全部检查推迟到真正转 LIVE 时一次性执行（transition 内保留合规底线）。
+      state: 'DRAFT',
       scheduledStart: start.toISOString(),
       scheduledEnd: end.toISOString(),
       startedAt: null,
@@ -318,14 +319,8 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     const session = await this.requireSession(id);
     assertTransition(session.state, state);
 
-    if (state === 'READY') {
-      const preflight = await this.preflight();
-      if (preflight.blocked || preflight.manualRequired) throw new Error('试播前检查仍有阻断或现场确认项，不能进入就绪状态');
-      const currentOffer = await this.database.getActiveOffer();
-      if (!currentOffer || session.offerSnapshotId !== currentOffer.id) {
-        throw new Error('场次绑定商品与当前有效商品不一致，请安全结束场次后重新建立');
-      }
-    }
+    // 流程精简（批次1）：READY 中间态不再用于新场次（DRAFT 可直接转 LIVE），
+    // preflight 只在真正转 LIVE 时执行一次，检查与确认全部集中在下方的 LIVE 分支。
 
     if (state === 'LIVE' && !externalStartConfirmed) {
       throw new Error('必须由员工确认已经在抖音直播伴侣人工完成本次开播');

@@ -1089,8 +1089,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
           <div className="panel-heading"><Radio aria-hidden="true" /><div><h2>场次安全控制</h2><p>“进入直播中”仍要求员工在抖音直播伴侣中人工操作并当次确认。</p></div></div>
           <div className="session-control-row">
             <StateBadge state={session.state} />
-            {session.state === 'DRAFT' && <button type="button" onClick={() => onTransition('READY', null)}>完成本地检查</button>}
-            {session.state === 'READY' && <button type="button" className="danger-action" onClick={() => onTransition('LIVE', null, true)}>我已在直播伴侣人工开播</button>}
+            {(session.state === 'DRAFT' || session.state === 'PREFLIGHT_BLOCKED' || session.state === 'READY') && <button type="button" className="danger-action" onClick={() => onTransition('LIVE', null, true)}>我已在直播伴侣人工开播</button>}
             {session.state === 'LIVE' && <button type="button" className="danger-action" onClick={() => onTransition('PAUSED', '员工主动暂停AI播报')}>暂停AI</button>}
             {session.state === 'PAUSED' && <button type="button" onClick={() => onTransition('LIVE', null, true)}>确认人工状态后恢复</button>}
             {!['STOPPED', 'COMPLETED'].includes(session.state) && <button type="button" onClick={() => onTransition('STOPPED', '员工安全结束场次')}>安全结束</button>}
@@ -1123,6 +1122,13 @@ function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, 
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    // 证据文件以内嵌 base64 上传（体积约膨胀 1/3），单文件上限 30MB，避免撞服务端请求体限制
+    if (file.size > 30 * 1024 * 1024) {
+      const message = '文件超过 30MB，请先压缩（缩小截图尺寸或另存为 JPG/PDF）后再上传';
+      setUploadError(message);
+      onError(message);
+      return;
+    }
     setUploading(true);
     setUploadError(null);
     setAskFirst(false);
