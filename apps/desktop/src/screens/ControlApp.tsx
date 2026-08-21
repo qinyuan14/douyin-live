@@ -1104,10 +1104,13 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void }) {
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [askFirst, setAskFirst] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const stored = uriName && shaName && Boolean(value[uriName] && value[shaName]);
 
   function handlePickFile() {
+    if (uploading) return;
     if (!privacyConfirmed) {
       setAskFirst(true);
       return;
@@ -1116,16 +1119,39 @@ function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, 
     fileRef.current?.click();
   }
 
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    setAskFirst(false);
+    try {
+      const saved = await api.uploadEvidence(file, true);
+      onChange({ ...value, [uriName!]: saved.sourceUri, [shaName!]: saved.sha256, [name]: value[name] || saved.originalName });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '证据文件保全失败';
+      setUploadError(message);
+      onError(message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return <div className="evidence-input wide">
     <label><span>{title}</span><input value={String(value[name])} onChange={(e) => onChange({ ...value, [name]: e.target.value })} placeholder="证据标题；没有就保持空白" /></label>
     {help && <p className="evidence-help">{help}</p>}
     {uriName && shaName && <>
       <label className="check-field"><input type="checkbox" checked={privacyConfirmed} onChange={(event) => { setPrivacyConfirmed(event.target.checked); if (event.target.checked) setAskFirst(false); }} /><span>已确认文件不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
       {askFirst && <p className="evidence-ask" role="alert">⚠ 请先勾选上面的「脱敏确认」，然后点这里就能选择文件了。</p>}
+      {uploadError && <p className="evidence-error" role="alert">✗ 保全失败：{uploadError}</p>}
       <div className="evidence-file">
-        <button type="button" className={privacyConfirmed ? '' : 'locked'} onClick={handlePickFile}><FileUp aria-hidden="true" />{stored ? '更换文件' : privacyConfirmed ? '选择已脱敏的本机证据文件' : '选择文件（需先勾选脱敏确认）'}</button>
-        <input ref={fileRef} type="file" style={{ display: 'none' }} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void api.uploadEvidence(file, true).then((saved) => onChange({ ...value, [uriName]: saved.sourceUri, [shaName]: saved.sha256, [name]: value[name] || saved.originalName })).catch((error: unknown) => onError(error instanceof Error ? error.message : '证据文件保全失败')); }} />
-        <small>{stored ? `文件已保全 · 校验尾号 ${String(value[shaName]).slice(-8)}` : '程序自动复制到本地证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small>
+        <button type="button" className={uploading ? 'uploading' : stored ? 'confirmed' : privacyConfirmed ? '' : 'locked'} onClick={handlePickFile} disabled={uploading}>
+          {uploading ? <LoaderCircle className="spin" aria-hidden="true" /> : stored ? <Check aria-hidden="true" /> : <FileUp aria-hidden="true" />}
+          {uploading ? '正在保全文件…' : stored ? '文件已保全' : privacyConfirmed ? '选择已脱敏的本机证据文件' : '选择文件（需先勾选脱敏确认）'}
+        </button>
+        <input ref={fileRef} type="file" style={{ display: 'none' }} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => void handleFileChange(event)} />
+        <small className={stored ? 'ok' : ''}>{stored ? `✓ 已保全到本机证据库 · 校验尾号 ${String(value[shaName]).slice(-8)}` : uploading ? '正在复制文件并计算校验值，请稍候…' : '选择文件后，程序会自动复制到本机证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small>
       </div>
     </>}
   </div>;
