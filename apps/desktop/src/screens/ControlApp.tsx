@@ -12,6 +12,7 @@ import {
   Database,
   DatabaseBackup,
   FileClock,
+  FileUp,
   Gauge,
   Hand,
   Headphones,
@@ -1102,11 +1103,31 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 
 function EvidenceInputs({ title, help, name, uriName, shaName, value, onChange, onError }: { title: string; help?: string; name: keyof ReturnType<typeof emptyOfferForm>; uriName: keyof ReturnType<typeof emptyOfferForm> | null; shaName: keyof ReturnType<typeof emptyOfferForm> | null; value: ReturnType<typeof emptyOfferForm>; onChange: (value: ReturnType<typeof emptyOfferForm>) => void; onError: (message: string) => void }) {
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+  const [askFirst, setAskFirst] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const stored = uriName && shaName && Boolean(value[uriName] && value[shaName]);
+
+  function handlePickFile() {
+    if (!privacyConfirmed) {
+      setAskFirst(true);
+      return;
+    }
+    setAskFirst(false);
+    fileRef.current?.click();
+  }
+
   return <div className="evidence-input wide">
     <label><span>{title}</span><input value={String(value[name])} onChange={(e) => onChange({ ...value, [name]: e.target.value })} placeholder="证据标题；没有就保持空白" /></label>
     {help && <p className="evidence-help">{help}</p>}
-    {uriName && shaName && <><label className="check-field"><input type="checkbox" checked={privacyConfirmed} onChange={(event) => setPrivacyConfirmed(event.target.checked)} /><span>已确认文件不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label><label className="evidence-file"><span>选择已脱敏的本机证据文件</span><input type="file" disabled={!privacyConfirmed} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void api.uploadEvidence(file, true).then((saved) => onChange({ ...value, [uriName]: saved.sourceUri, [shaName]: saved.sha256, [name]: value[name] || saved.originalName })).catch((error: unknown) => onError(error instanceof Error ? error.message : '证据文件保全失败')); }} /><small>{stored ? `文件已保全 · 校验尾号 ${String(value[shaName]).slice(-8)}` : '程序自动复制到本地证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small></label></>}
+    {uriName && shaName && <>
+      <label className="check-field"><input type="checkbox" checked={privacyConfirmed} onChange={(event) => { setPrivacyConfirmed(event.target.checked); if (event.target.checked) setAskFirst(false); }} /><span>已确认文件不含姓名、电话、地址、头像、订单号、券码或聊天账号</span></label>
+      {askFirst && <p className="evidence-ask" role="alert">⚠ 请先勾选上面的「脱敏确认」，然后点这里就能选择文件了。</p>}
+      <div className="evidence-file">
+        <button type="button" className={privacyConfirmed ? '' : 'locked'} onClick={handlePickFile}><FileUp aria-hidden="true" />{stored ? '更换文件' : privacyConfirmed ? '选择已脱敏的本机证据文件' : '选择文件（需先勾选脱敏确认）'}</button>
+        <input ref={fileRef} type="file" style={{ display: 'none' }} accept=".png,.jpg,.jpeg,.pdf,.txt,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void api.uploadEvidence(file, true).then((saved) => onChange({ ...value, [uriName]: saved.sourceUri, [shaName]: saved.sha256, [name]: value[name] || saved.originalName })).catch((error: unknown) => onError(error instanceof Error ? error.message : '证据文件保全失败')); }} />
+        <small>{stored ? `文件已保全 · 校验尾号 ${String(value[shaName]).slice(-8)}` : '程序自动复制到本地证据库并计算校验值；图片和PDF仍需人工确认脱敏'}</small>
+      </div>
+    </>}
   </div>;
 }
 
