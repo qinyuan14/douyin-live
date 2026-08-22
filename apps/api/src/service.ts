@@ -187,12 +187,30 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     });
     const payload = await response.json().catch(() => null) as { code?: number; message?: string; data?: { audio?: string } } | null;
     if (!response.ok || payload?.code !== 3000 || !payload.data?.audio) {
-      const hint = typeof payload?.message === 'string' && payload.message.length > 0
+      const raw = typeof payload?.message === 'string' && payload.message.length > 0
         ? payload.message
         : `HTTP ${response.status}`;
-      throw new Error(`火山引擎语音合成失败（${hint}）。请核对：AppID/令牌是否正确、音色代码是否存在、Cluster 是否匹配（经典语音用 volcano_tts，豆包大模型语音用 volcano_mega）`);
+      throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(raw)}`);
     }
     return { audioBase64: payload.data.audio, format: 'mp3' };
+  }
+
+  /** 把火山引擎返回的原始错误翻译成大白话（常见鉴权/音色/限流场景） */
+  private describeVolcTtsError(raw: string): string {
+    const grantPatterns = ['load grant', 'grant not found', 'grant type', 'access denied', 'forbidden', 'unauthorized', '鉴权失败', 'token', 'not authorized'];
+    if (grantPatterns.some((pattern) => raw.toLowerCase().includes(pattern))) {
+      return '「访问令牌无效」——请回火山控制台核对：① 进入 语音技术→语音合成→应用管理，复制「同一个应用」的 AppID 和 Access Token（完整复制，别带空格/漏字符）；② 确认该应用已开通语音合成服务；③ 若重置过令牌请用最新那个。';
+    }
+    if (/4040|voice.*not.*found|音色.*不存在/.test(raw)) {
+      return '「音色代码不存在」——请在下拉里换个音色，或确认手动输入的代码正确（如 BV700_streaming）。';
+    }
+    if (/4004|app.*not.*found|应用.*不存在/.test(raw)) {
+      return '「AppID 无效」——请核对控制台里的 AppID 是否完整复制。';
+    }
+    if (/4064|并发|qps|limit|quota|flow/.test(raw)) {
+      return '「并发或额度超限」——免费额度用完了或同时请求太多，稍等再试或检查控制台额度。';
+    }
+    return raw;
   }
 
   listOffers() {
