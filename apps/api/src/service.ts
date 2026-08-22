@@ -206,7 +206,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       }
     }
     const triedNote = attempts.length > 1 ? '（已自动尝试 经典语音 与 豆包大模型 两套接口，仍失败）' : '';
-    throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(lastError)}${triedNote}`);
+    throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(lastError)}（原始返回：${lastError.slice(0, 200)}）${triedNote}`);
   }
 
   /** 单次火山 TTS 请求：按 cluster 自动选 v1 经典或 v3 豆包大模型接口 */
