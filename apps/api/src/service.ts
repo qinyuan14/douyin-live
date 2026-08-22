@@ -273,8 +273,13 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     return { audioBase64: payload.audio.data, format: 'mp3' };
   }
 
-  /** 把火山引擎返回的原始错误翻译成大白话（常见鉴权/音色/限流场景） */
+  /** 把火山引擎返回的原始错误翻译成大白话（常见鉴权/音色/限流/资源未开通场景） */
   private describeVolcTtsError(raw: string): string {
+    // 「资源未授权」：AppID 在语音合成 SaaS 里没开通 volc.tts.default 资源 →
+    // 大概率账号根本没有语音合成服务（只有方舟），引导切到方舟模式
+    if (/resource.*not granted|not granted|resource_id|资源.*未.*授权|未开通/.test(raw)) {
+      return '「未开通语音合成服务」——你当前用的是「火山·语音合成」模式，但这个账号没有开通语音合成服务。如果你持有的是「火山方舟」API Key（sk- 开头），请把音色来源切换到「火山方舟」，填 API Key 和模型/推理接入点 ID（方舟控制台→在线推理→创建推理接入点→选择语音合成模型）；若确认要用语音合成，请先到火山控制台开通「语音技术→语音合成」服务并绑定应用。';
+    }
     const grantPatterns = ['load grant', 'grant not found', 'grant type', 'access denied', 'forbidden', 'unauthorized', '鉴权失败', 'invalid token', 'not authorized'];
     if (grantPatterns.some((pattern) => raw.toLowerCase().includes(pattern))) {
       return '「访问令牌无效」——请回火山控制台核对：① 进入 语音技术→语音合成→应用管理，复制「同一个应用」的 AppID 和 Access Token（完整复制，别带空格/漏字符）；② 确认该应用已开通语音合成服务；③ 若重置过令牌请用最新那个。';
