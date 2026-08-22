@@ -60,11 +60,12 @@ const DEFAULT_CONFIG: StoreConfig = {
   serviceAreasConfirmed: false,
   productCategories: [],
   onboardingCompleted: false,
-  // v13.1：播报音色（默认系统语音；火山引擎需在设置中填密钥后切换）
+  // v13.1：播报音色（默认系统语音；火山引擎/火山方舟需在设置中填密钥后切换）
   tts: {
     provider: 'system',
     systemVoiceName: null,
     volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+    ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   },
 };
 
@@ -111,7 +112,7 @@ export class LiveDatabase {
     }
     this.state = {
       // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段（tts 深合并，旧数据缺子字段也能补默认）
-      config: { ...DEFAULT_CONFIG, ...rawConfig, tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts } },
+      config: { ...DEFAULT_CONFIG, ...rawConfig, tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine }, ark: { ...DEFAULT_CONFIG.tts.ark, ...rawConfig.tts?.ark } } },
       offers: this.readJson<OfferSnapshot[]>('offers', []),
       knowledge: this.readJson<KnowledgeItem[]>('knowledge', []),
       sessions: this.readJson<LiveSession[]>('sessions', []),
@@ -218,11 +219,11 @@ export class LiveDatabase {
       if (typeof patch.onboardingCompleted === 'boolean') {
         this.state.config.onboardingCompleted = patch.onboardingCompleted;
       }
-      // v13.1：播报音色设置（系统语音 / 火山引擎）
+      // v13.1：播报音色设置（系统语音 / 火山引擎 / 火山方舟）
       if (patch.tts && typeof patch.tts === 'object') {
         const tts = patch.tts as Record<string, unknown>;
         const next = { ...DEFAULT_CONFIG.tts, ...this.state.config.tts, ...tts };
-        if (tts.provider === 'system' || tts.provider === 'volcengine') next.provider = tts.provider;
+        if (tts.provider === 'system' || tts.provider === 'volcengine' || tts.provider === 'ark') next.provider = tts.provider;
         if (typeof tts.systemVoiceName === 'string' || tts.systemVoiceName === null) next.systemVoiceName = tts.systemVoiceName;
         if (tts.volcengine && typeof tts.volcengine === 'object') {
           const v = tts.volcengine as Record<string, unknown>;
@@ -232,6 +233,15 @@ export class LiveDatabase {
             ...(typeof v.accessToken === 'string' ? { accessToken: v.accessToken } : {}),
             ...(typeof v.cluster === 'string' ? { cluster: v.cluster } : {}),
             ...(typeof v.voiceType === 'string' ? { voiceType: v.voiceType } : {}),
+          };
+        }
+        if (tts.ark && typeof tts.ark === 'object') {
+          const a = tts.ark as Record<string, unknown>;
+          next.ark = {
+            ...next.ark,
+            ...(typeof a.apiKey === 'string' ? { apiKey: a.apiKey } : {}),
+            ...(typeof a.model === 'string' ? { model: a.model } : {}),
+            ...(typeof a.voiceType === 'string' ? { voiceType: a.voiceType } : {}),
           };
         }
         this.state.config.tts = next;

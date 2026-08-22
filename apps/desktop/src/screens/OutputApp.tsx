@@ -117,8 +117,13 @@ export function OutputApp() {
     window.speechSynthesis.cancel();
     audioRef.current?.pause();
     audioRef.current = null;
-    const volcReady = ttsRef.current?.provider === 'volcengine'
-      && Boolean(ttsRef.current.volcengine.appId) && Boolean(ttsRef.current.volcengine.accessToken);
+    const volcReady = (() => {
+      const t = ttsRef.current;
+      if (!t) return false;
+      if (t.provider === 'volcengine') return Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken);
+      if (t.provider === 'ark') return Boolean(t.ark.apiKey) && Boolean(t.ark.model);
+      return false;
+    })();
     const speakNext = (index: number) => {
       if (sequence !== speechSequenceRef.current || !connectedRef.current || isSpeechBlocked(stateRef.current)) return;
       const chunk = chunks[index];
@@ -188,15 +193,20 @@ export function OutputApp() {
       if (message.type === 'stop-speech') stopSpeech(message.reason);
       if (message.type === 'speak') speak(message);
       if (message.type === 'voice-test') {
-        const volcReady = ttsRef.current?.provider === 'volcengine'
-          && Boolean(ttsRef.current.volcengine.appId) && Boolean(ttsRef.current.volcengine.accessToken);
+        const t = ttsRef.current;
+        const volcReady = t ? (t.provider === 'volcengine'
+          ? Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken)
+          : t.provider === 'ark'
+            ? Boolean(t.ark.apiKey) && Boolean(t.ark.model)
+            : false) : false;
         const testText = '实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。';
         if (volcReady) {
-          void api.tts({ text: testText, voiceType: ttsRef.current?.volcengine.voiceType || undefined })
+          void api.tts({ text: testText, voiceType: t?.provider === 'ark' ? (t.ark.voiceType || undefined) : (t?.volcengine.voiceType || undefined) })
             .then(({ audioBase64 }) => {
               const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
               audio.onended = () => {
-                channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: `火山引擎·${ttsRef.current?.volcengine.voiceType ?? ''}` });
+                const label = t?.provider === 'ark' ? `火山方舟·${t.ark.voiceType ?? ''}` : `火山引擎·${t?.volcengine.voiceType ?? ''}`;
+                channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: label });
               };
               audio.onerror = () => {
                 channel.postMessage({ type: 'voice-test-result', id: message.id, generated: false, voiceName: null });

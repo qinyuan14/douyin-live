@@ -163,13 +163,19 @@ export const PreflightCheckSchema = z.object({
 export type PreflightCheck = z.infer<typeof PreflightCheckSchema>;
 
 export const TtsConfigSchema = z.object({
-  // 播报音色来源：system（Windows 系统语音）| volcengine（火山引擎·抖音同款，需密钥）
-  provider: z.enum(['system', 'volcengine']),
+  // 播报音色来源：system（Windows 系统语音）| volcengine（火山·语音合成 AppID/Token）
+  // | ark（火山方舟 API Key，sk- 开头，走 ark.cn-beijing.volces.com/api/v3/tts）
+  provider: z.enum(['system', 'volcengine', 'ark']),
   systemVoiceName: z.string().nullable(),
   volcengine: z.object({
     appId: z.string(),
     accessToken: z.string(),
     cluster: z.string(),
+    voiceType: z.string(),
+  }),
+  ark: z.object({
+    apiKey: z.string(),
+    model: z.string(),
     voiceType: z.string(),
   }),
 });
@@ -185,11 +191,12 @@ export const StoreConfigSchema = z.object({
   serviceAreasConfirmed: z.boolean(),
   productCategories: z.array(z.string()),
   onboardingCompleted: z.boolean(),
-  // v13.1：播报音色设置（系统语音 / 火山引擎·抖音同款）
+  // v13.1：播报音色设置（系统语音 / 火山引擎·抖音同款 / 火山方舟 API Key）
   tts: TtsConfigSchema.default({
     provider: 'system',
     systemVoiceName: null,
     volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+    ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   }),
 });
 export type StoreConfig = z.infer<typeof StoreConfigSchema>;

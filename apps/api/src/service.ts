@@ -169,13 +169,26 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * v13.1：火山引擎语音合成代理（抖音同款音色）。
    * v16.1：支持两套接口自动识别——经典语音（v1 + volcano_tts + BV 系列音色）与
    * 豆包大模型语音（v3 + volcano_mega + zh_*_moon_bigtts 音色），按音色代码自动选接口，
-   * 经典接口遇授权类错误时自动用同款大模型音色重试。密钥只存本机 config，不外发。
+   * 经典接口遇授权类错误时自动用同款大模型音色重试。
+   * v18.1：新增「火山方舟」直连——方舟 API Key（sk- 开头）走 ark.cn-beijing.volces.com/api/v3/tts，
+   * OpenAI 兼容格式（Authorization: Bearer {API_KEY}，空格分隔）。密钥只存本机 config，不外发。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
     const parsed = z.object({ text: z.string().min(1).max(500), voiceType: z.string().optional() }).parse(input);
     const config = await this.database.getStoreConfig();
-    const v = config.tts?.volcengine;
-    if (config.tts?.provider !== 'volcengine' || !v?.appId || !v?.accessToken) {
+    const ttsConfig = config.tts;
+    // 火山方舟：API Key 直连
+    if (ttsConfig?.provider === 'ark') {
+      const a = ttsConfig.ark;
+      if (!a?.apiKey?.trim()) {
+        throw new Error('尚未填写火山方舟 API Key：请在「播报音色」中选择「火山方舟」并填入 API Key（sk- 开头）与模型');
+      }
+      const model = (parsed.voiceType ? a.model : a.model).trim() || a.model.trim();
+      const voiceType = (parsed.voiceType || a.voiceType || 'zh_female_cancan_moon_bigtts').trim();
+      return this.arkTtsRequest(a.apiKey.trim(), model, voiceType, parsed.text);
+    }
+    const v = ttsConfig?.volcengine;
+    if (ttsConfig?.provider !== 'volcengine' || !v?.appId || !v?.accessToken) {
       throw new Error('尚未开启火山引擎语音：请先在「语音设置」中填写 AppID 与访问令牌，并切换音色来源');
     }
     const voiceType = (parsed.voiceType || v.voiceType || 'BV700_streaming').trim();
@@ -232,6 +245,32 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       throw new Error(raw);
     }
     return { audioBase64: payload.data.audio, format: 'mp3' };
+  }
+
+  /** 火山方舟 TTS 直连（OpenAI 兼容 /api/v3/tts）：Authorization: Bearer {API_KEY}（空格分隔，区别于语音合成的分号） */
+  private async arkTtsRequest(apiKey: string, model: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
+    const modelId = model.trim();
+    if (!modelId) {
+      throw new Error('请填写火山方舟的「模型/推理接入点 ID」：方舟控制台 → 在线推理 → 创建推理接入点 → 选择语音合成模型 → 复制接入点 ID（形如 ep-xxx 或 tts-xxx）');
+    }
+    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: modelId,
+        input: text,
+        voice: voiceType,
+        response_format: 'mp3',
+        speed: 1.0,
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = await response.json().catch(() => null) as { error?: { message?: string; type?: string }; audio?: { data?: string } } | null;
+    if (!response.ok || !payload?.audio?.data) {
+      const raw = payload?.error?.message ?? `HTTP ${response.status}`;
+      throw new Error(`火山方舟语音合成失败：${raw}（请核对：API Key 是否正确、模型/接入点 ID 是否选择的是语音合成模型、该模型是否已开通；方舟鉴权为 Bearer {API Key} 空格分隔）`);
+    }
+    return { audioBase64: payload.audio.data, format: 'mp3' };
   }
 
   /** 把火山引擎返回的原始错误翻译成大白话（常见鉴权/音色/限流场景） */
