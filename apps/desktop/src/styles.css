@@ -482,6 +482,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .evidence-global-check { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 14px; padding: 11px 13px; background: var(--green-soft); border: 1px solid #bcdcc9; border-radius: 10px; font-size: 12.5px; color: #205d44; line-height: 1.6; }
 .evidence-global-check input { margin-top: 3px; }
 .panel-heading .secondary-action { margin-left: auto; }
+/* —— 初始化向导步骤条（小白商用 v2）—— */
+.onboarding-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 0 18px; }
+.onboarding-step { display: flex; align-items: center; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--muted); }
+.onboarding-step > span { width: 24px; height: 24px; border-radius: 50%; background: var(--steel); color: white; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex: none; }
+.onboarding-step > span svg { width: 14px; height: 14px; }
+.onboarding-step strong { font-size: 12.5px; font-weight: 700; }
+.onboarding-step.active { border-color: var(--steel); background: var(--steel-soft); color: var(--ink); }
+.onboarding-step.active > span { background: var(--steel); }
+.onboarding-step.done { border-color: #bcdcc9; background: var(--green-soft); }
+.onboarding-step.done > span { background: #2f8f5b; }
+.onboarding-summary { font-size: 13px; color: var(--ink); line-height: 1.8; }
 /* —— 播报音色设置 —— */
 .voice-settings { background: #fbfcfb; border: 1px solid var(--steel); border-radius: 16px; padding: 22px; margin-bottom: 16px; }
 .voice-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }

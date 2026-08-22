@@ -198,6 +198,22 @@ export const StoreConfigSchema = z.object({
     volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
     ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   }),
+  // ===== 小白商用重构 v2（阶段1）=====
+  // 完整初始化标记：4 步向导全部完成后置 true；老用户按兼容规则推导，不重走向导
+  setupCompleted: z.boolean().default(false),
+  // 配置快照：向导完成时间与各项确认，供审计与"重新配置"比对
+  setupSnapshot: z.object({
+    completedAt: z.string().default(''),
+    version: z.number().default(2),
+    confirmed: z.object({
+      serviceAreas: z.boolean().default(false),
+      offer: z.boolean().default(false),
+      hardware: z.boolean().default(false),
+    }).default({ serviceAreas: false, offer: false, hardware: false }),
+  }).default({ completedAt: '', version: 2, confirmed: { serviceAreas: false, offer: false, hardware: false } }),
+  // 监护确认落盘（替代 service 内存态）：首次确认后永久复用，除非主动重配
+  hardwareConfirmed: z.boolean().default(false),
+  hardwareConfirmedAt: z.string().nullable().default(null),
 });
 export type StoreConfig = z.infer<typeof StoreConfigSchema>;
 

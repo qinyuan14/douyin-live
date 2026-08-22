@@ -67,6 +67,15 @@ const DEFAULT_CONFIG: StoreConfig = {
     volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
     ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   },
+  // 小白商用重构 v2（阶段1）：完整初始化标记与监护落盘
+  setupCompleted: false,
+  setupSnapshot: {
+    completedAt: '',
+    version: 2,
+    confirmed: { serviceAreas: false, offer: false, hardware: false },
+  },
+  hardwareConfirmed: false,
+  hardwareConfirmedAt: null,
 };
 
 export class LiveDatabase {
@@ -110,10 +119,22 @@ export class LiveDatabase {
     if (typeof rawConfig.presenceIntervalMinutes === 'number' && rawConfig.presenceIntervalMinutes === 5 && this.configWasNeverTouched()) {
       rawConfig.presenceIntervalMinutes = 15;
     }
+    const offers = this.readJson<OfferSnapshot[]>('offers', []);
+    const mergedConfig: StoreConfig = {
+      // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段（tts/setupSnapshot 深合并）
+      ...DEFAULT_CONFIG,
+      ...rawConfig,
+      tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine }, ark: { ...DEFAULT_CONFIG.tts.ark, ...rawConfig.tts?.ark } },
+      setupSnapshot: { ...DEFAULT_CONFIG.setupSnapshot, ...rawConfig.setupSnapshot, confirmed: { ...DEFAULT_CONFIG.setupSnapshot.confirmed, ...rawConfig.setupSnapshot?.confirmed } },
+    };
+    // 老用户兼容：已走过旧向导且有商品 → 视为已完成初始化，不重走向导
+    if (!mergedConfig.setupCompleted && mergedConfig.onboardingCompleted === true && offers.length > 0) {
+      mergedConfig.setupCompleted = true;
+      mergedConfig.hardwareConfirmed = mergedConfig.hardwareConfirmed || mergedConfig.serviceAreasConfirmed;
+    }
     this.state = {
-      // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段（tts 深合并，旧数据缺子字段也能补默认）
-      config: { ...DEFAULT_CONFIG, ...rawConfig, tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine }, ark: { ...DEFAULT_CONFIG.tts.ark, ...rawConfig.tts?.ark } } },
-      offers: this.readJson<OfferSnapshot[]>('offers', []),
+      config: mergedConfig,
+      offers,
       knowledge: this.readJson<KnowledgeItem[]>('knowledge', []),
       sessions: this.readJson<LiveSession[]>('sessions', []),
       orders: this.readJson<OrderOutcome[]>('orders', []),
@@ -218,6 +239,39 @@ export class LiveDatabase {
       }
       if (typeof patch.onboardingCompleted === 'boolean') {
         this.state.config.onboardingCompleted = patch.onboardingCompleted;
+      }
+      // 小白商用重构 v2：完整初始化标记 / 配置快照 / 监护落盘
+      if (typeof patch.setupCompleted === 'boolean') {
+        this.state.config.setupCompleted = patch.setupCompleted;
+        if (patch.setupCompleted) {
+          this.state.config.setupSnapshot = {
+            completedAt: this.state.config.setupSnapshot.completedAt || new Date().toISOString(),
+            version: 2,
+            confirmed: {
+              serviceAreas: this.state.config.serviceAreasConfirmed,
+              offer: this.state.offers.length > 0,
+              hardware: this.state.config.hardwareConfirmed,
+            },
+          };
+        }
+      }
+      if (patch.setupSnapshot && typeof patch.setupSnapshot === 'object') {
+        const snap = patch.setupSnapshot as Record<string, unknown>;
+        this.state.config.setupSnapshot = {
+          ...this.state.config.setupSnapshot,
+          ...(typeof snap.completedAt === 'string' ? { completedAt: snap.completedAt } : {}),
+          ...(typeof snap.version === 'number' ? { version: snap.version } : {}),
+          ...(snap.confirmed && typeof snap.confirmed === 'object'
+            ? { confirmed: { ...this.state.config.setupSnapshot.confirmed, ...(snap.confirmed as Record<string, unknown>) } }
+            : {}),
+        };
+      }
+      if (typeof patch.hardwareConfirmed === 'boolean') {
+        this.state.config.hardwareConfirmed = patch.hardwareConfirmed;
+        this.state.config.hardwareConfirmedAt = patch.hardwareConfirmed ? new Date().toISOString() : null;
+      }
+      if (typeof patch.hardwareConfirmedAt === 'string' || patch.hardwareConfirmedAt === null) {
+        this.state.config.hardwareConfirmedAt = patch.hardwareConfirmedAt;
       }
       // v13.1：播报音色设置（系统语音 / 火山引擎 / 火山方舟）
       if (patch.tts && typeof patch.tts === 'object') {

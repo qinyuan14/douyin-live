@@ -116,10 +116,10 @@ export function ControlApp() {
 
   // 首次进入值班台（完成初始化向导后）弹出新手引导；关掉后记住，可随时从任务清单重新打开
   useEffect(() => {
-    if (data?.config.onboardingCompleted && !window.localStorage.getItem(GUIDE_SEEN_KEY)) {
+    if (data?.config.setupCompleted && !window.localStorage.getItem(GUIDE_SEEN_KEY)) {
       setShowGuide(true);
     }
-  }, [data?.config.onboardingCompleted]);
+  }, [data?.config.setupCompleted]);
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -252,7 +252,8 @@ export function ControlApp() {
         session = result.session;
       }
       if (!session) return;
-      if (data?.preflight.blocked || data?.preflight.manualRequired) {
+      // v2：manualRequired 仅指「当次开播授权」，一键开播点击后弹确认即可，不视为未就绪
+      if (data?.preflight.blocked) {
         setLaunchOpen(true);
       } else {
         setConfirmOpen(true);
@@ -365,9 +366,9 @@ export function ControlApp() {
     return <ActivationGate machineId={data.activation.machineId} onActivated={() => void refresh()} />;
   }
 
-  // 首次启动：未完成初始化向导前，先填写品牌/服务范围/类目（门禁保持 BLOCKED）
-  if (!data.config.onboardingCompleted) {
-    return <Onboarding onCompleted={() => void refresh()} />;
+  // 首次启动：未完成初始化向导前，先完成 4 步设置（小白商用 v2）
+  if (!data.config.setupCompleted) {
+    return <Onboarding existingOfferTitle={activeOffer?.title ?? null} onCompleted={() => void refresh()} />;
   }
 
   const passedChecks = data.preflight.checks.filter((check) => check.status === 'PASS').length;
@@ -554,7 +555,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
   const session = data.session;
   const tasks = buildTasks(data, activeOffer);
   const doneCount = tasks.filter((task) => task.status === 'done').length;
-  const ready = !data.preflight.blocked && !data.preflight.manualRequired;
+  const ready = !data.preflight.blocked;
   return (
     <div className="overview-grid">
       <section className="one-click-card">
@@ -640,7 +641,7 @@ function Overview({ data, activeOffer, passedChecks, working, rehearsing, onCrea
               <UserCheck aria-hidden="true" />我在现场
             </button>
           )}
-          {(data.preflight.blocked || data.preflight.manualRequired) && (
+          {data.preflight.blocked && (
             <button className="primary-action" type="button" onClick={() => onNavigate('preflight')}>
               <ShieldCheck aria-hidden="true" />继续完成开播准备 {passedChecks}/{data.preflight.checks.length}
             </button>
@@ -713,49 +714,34 @@ interface TaskItem {
 /** 首页「开播任务」清单：从 0 到开播的 5 件事，每件写明怎么做、做到哪、点哪进入 */
 function buildTasks(data: BootstrapData, activeOffer: OfferSnapshot | null): TaskItem[] {
   const statusById = new Map(data.preflight.checks.map((check) => [check.id, check.status]));
-  const evidenceDone = ['self-offer', 'self-cost', 'self-asset'].every((id) => statusById.get(id) === 'PASS');
-  const hardwareDone = data.hardware.cameraFramingConfirmed && data.hardware.voiceReady && data.hardware.takeoverReady;
+  const setupDone = statusById.get('setup-complete') === 'PASS';
+  const offerDone = statusById.get('offer-active') === 'PASS';
   const rehearsalReady = data.runSheet.some((segment) => segment.approved);
-  const canGoLive = !data.preflight.blocked && !data.preflight.manualRequired;
 
   return [
     {
-      id: 'store-info',
-      label: '填写店铺信息',
-      how: data.config.onboardingCompleted ? '已填写：品牌名、服务范围、商品类目' : '填写品牌名、服务范围与商品类目，用于输出画面与商品快照',
-      status: data.config.onboardingCompleted ? 'done' : 'todo',
-      page: 'overview',
-    },
-    {
-      // 流程精简（批次2）：录入商品与三份材料合并为一项，一次在「开播准备」里做完
-      id: 'offer',
-      label: '录入你的商品',
-      how: activeOffer && evidenceDone
-        ? `已就绪：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）与三项自查`
-        : '到「开播准备」导入商品快照：填商品名和价格，勾选三项自查确认（不用上传任何文件）',
-      status: activeOffer && evidenceDone ? 'done' : 'todo',
+      // 小白商用 v2：首次设置已由 4 步向导完成，日常不再重复
+      id: 'setup',
+      label: '完成首次设置',
+      how: setupDone ? '店铺、商品、声音、监护已在首次向导中确认（重启不重复）' : '打开「开播准备」补全首次设置，或到「设置」重新配置',
+      status: setupDone ? 'done' : 'todo',
       page: 'preflight',
     },
     {
-      id: 'hardware',
-      label: '确认本机设备',
-      how: hardwareDone ? '数字人画面、中文语音、真人接管都已确认' : '点「打开直播输出窗口」：确认数字人形象无真人出镜、试听中文语音、确认真人声音可接管',
-      status: hardwareDone ? 'done' : 'todo',
+      id: 'offer',
+      label: '商品信息有效',
+      how: offerDone && activeOffer
+        ? `当前商品：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）`
+        : '在「开播准备」录入商品：填名称和价格，勾选三项确认（不用上传文件）',
+      status: offerDone ? 'done' : 'todo',
       page: 'preflight',
     },
     {
       id: 'rehearsal',
       label: '本地演练一遍',
-      how: rehearsalReady ? '在「直播流程」点「开始演练」，AI 按两小时流程播报，检查声音和字幕' : '需要先完成商品与材料准备，流程话术就绪后即可演练',
+      how: rehearsalReady ? '在「直播流程」点「开始演练」，AI 按两小时流程播报，检查声音和字幕' : '首次设置完成后即可演练，检查声音和字幕效果',
       status: rehearsalReady ? 'ready' : 'blocked',
       page: 'director',
-    },
-    {
-      id: 'go-live',
-      label: '正式开播',
-      how: canGoLive ? '所有准备完成！在抖音直播伴侣人工开播后，回「开播准备」点「我已在直播伴侣人工开播」' : '前面准备全部完成后，这里才会解锁',
-      status: canGoLive ? 'ready' : 'blocked',
-      page: 'preflight',
     },
   ];
 }
@@ -774,11 +760,9 @@ function GuideModal({ onClose, onStart }: { onClose: () => void; onStart: (page:
         <h2>欢迎使用实景直播经营系统</h2>
         <p>这套工具帮你把「真实工作台」直播出去：AI 主持播报、真人监护、问答有把关。从 0 到开播，跟着 5 步走：</p>
         <ol className="guide-steps">
-          <li><b>填写店铺信息</b><span>品牌名、服务范围、商品类目（你已完成）</span></li>
-          <li><b>录入你的商品</b><span>在「开播准备」导入商品快照：填商品名和价格，勾选三项自查（不用上传文件）</span></li>
-          <li><b>确认本机设备</b><span>摄像头画面不露脸、中文语音能听见、真人声音可接管</span></li>
+          <li><b>完成首次设置</b><span>店铺、商品、声音、监护一次配好（你已完成）</span></li>
+          <li><b>商品信息有效</b><span>在「开播准备」确认商品名称和价格（不用上传文件）</span></li>
           <li><b>本地演练一遍</b><span>在「直播流程」试听 AI 两小时播报，检查声音和字幕</span></li>
-          <li><b>正式开播</b><span>全部准备完成后，再上抖音直播伴侣人工开播</span></li>
         </ol>
         <p className="guide-note">首页的「一键开播」会带你一步一步做完，看不懂随时点「重新看引导」。</p>
         <div className="guide-actions">

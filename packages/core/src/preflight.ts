@@ -3,6 +3,7 @@ import type { OfferSnapshot, PreflightCheck, StoreConfig } from '@liveops/live-c
 export interface PreflightInput {
   activeOffer: OfferSnapshot | null;
   settings: StoreConfig;
+  // 兼容字段保留（service 侧仍传入），门禁判定不再依赖实时硬件状态（v2 起用落盘配置）
   cameraReady: boolean;
   cameraDeviceId: string | null;
   cameraLabel: string | null;
@@ -12,78 +13,43 @@ export interface PreflightInput {
   takeoverReady: boolean;
 }
 
-/** 商家自查确认（v8.1 起替代文件上传：商品真实性 / 成本真实 / 素材自有） */
-function selfChecked(offer: OfferSnapshot | null, key: 'offerConfirmed' | 'costConfirmed' | 'assetConfirmed'): boolean {
-  return offer?.selfChecks?.[key] === true;
-}
-
 /**
- * 开播硬门禁（通用合规模板）。状态含义：
+ * 开播检查（小白商用 v2：6 门禁收敛为 3 检查项）。
+ * 理念：配置期（首次 4 步向导一次性确认，落盘 setupCompleted/hardwareConfirmed）
+ *  vs 使用期（日常只剩「我已在直播伴侣开播」当次人工确认）。
+ * 状态含义：
  * - PASS：已满足
- * - BLOCKED：必需的自查确认/服务区缺失，硬阻断
- * - MANUAL_REQUIRED：需在本机或直播伴侣内人工确认（摄像头/语音/接管、当次授权）
- * 服务区门禁必须商家在首次启动向导显式勾选确认（settings.serviceAreasConfirmed）。
- * v8.1 起不再要求上传文件证据与平台客服书面答复，改为商家逐项自查确认。
+ * - BLOCKED：缺少必要配置（商品未录入），硬阻断
+ * - MANUAL_REQUIRED：需人工操作（补全首次设置 / 当次开播授权）
  */
 export function buildPreflightChecks(input: PreflightInput): PreflightCheck[] {
   const { activeOffer, settings } = input;
-  // 数字人模式（v12.1）：不要求连接真实摄像头；确认画面形态合规（数字人形象、无真人出镜）、
-  // 中文语音可闻、真人随时可接管（平台对 AI 直播的真人监护底线）。
-  const hardwareReady = input.cameraFramingConfirmed && input.voiceReady && input.takeoverReady;
-  const serviceAreaReady = settings.serviceAreasConfirmed && settings.serviceAreas.length > 0;
-  const offerServiceAreas = activeOffer?.serviceAreas ?? [];
+  const setupReady = settings.setupCompleted && settings.hardwareConfirmed;
 
   return [
     {
-      id: 'self-offer',
-      label: '商品真实性与价格确认',
-      status: selfChecked(activeOffer, 'offerConfirmed') ? 'PASS' : 'BLOCKED',
-      detail: selfChecked(activeOffer, 'offerConfirmed')
-        ? '已在商品快照中确认商品真实存在且价格如实'
-        : '需在商品快照中勾选确认：商品真实存在、价格与店内一致',
+      id: 'setup-complete',
+      label: '首次设置已完成',
+      status: setupReady ? 'PASS' : 'MANUAL_REQUIRED',
+      detail: setupReady
+        ? '店铺、商品、声音、监护已在首次向导中确认'
+        : '首次使用请先完成初始化向导（约 5 分钟），之后打开即用',
       required: true,
     },
     {
-      id: 'service-area',
-      label: '服务范围已确认且可执行',
-      status: serviceAreaReady ? 'PASS' : 'BLOCKED',
-      detail: serviceAreaReady
-        ? `已确认服务范围：${settings.serviceAreas.join('、')}${offerServiceAreas.length ? `（商品覆盖：${offerServiceAreas.join('、')}）` : ''}`
-        : '未在初始化向导中确认真实可执行的服务范围清单',
-      required: true,
-    },
-    {
-      id: 'self-cost',
-      label: '成本真实性确认',
-      status: selfChecked(activeOffer, 'costConfirmed') ? 'PASS' : 'BLOCKED',
-      detail: selfChecked(activeOffer, 'costConfirmed')
-        ? '已在商品快照中确认按真实成本经营'
-        : '需在商品快照中勾选确认：售价按真实成本经营，不构成超低价',
-      required: true,
-    },
-    {
-      id: 'hardware',
-      label: '画面 / 语音 / 真人监护',
-      status: hardwareReady ? 'PASS' : 'MANUAL_REQUIRED',
-      detail: hardwareReady
-        ? '数字人画面合规、中文语音与真人接管均已确认'
-        : '需确认：画面为数字人形象且无真人出镜、中文语音可闻、真人随时可接管',
-      required: true,
-    },
-    {
-      id: 'self-asset',
-      label: '素材与 AI 标识确认',
-      status: selfChecked(activeOffer, 'assetConfirmed') ? 'PASS' : 'BLOCKED',
-      detail: selfChecked(activeOffer, 'assetConfirmed')
-        ? '已在商品快照中确认直播素材自有或已授权'
-        : '需在商品快照中勾选确认：直播画面素材为自有拍摄或已取得授权',
+      id: 'offer-active',
+      label: '商品信息有效',
+      status: activeOffer ? 'PASS' : 'BLOCKED',
+      detail: activeOffer
+        ? `当前商品：${activeOffer.title}（¥${(activeOffer.priceCents / 100).toFixed(2)}）`
+        : '请先录入一个真实在售的商品',
       required: true,
     },
     {
       id: 'authorization',
-      label: '当次开播授权',
+      label: '本次开播授权',
       status: 'MANUAL_REQUIRED',
-      detail: '需在抖音直播伴侣内人工确认本次账号/商品/日期与开播动作',
+      detail: '需在抖音直播伴侣内人工开播后，点「我已在直播伴侣开播」',
       required: true,
     },
   ];

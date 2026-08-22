@@ -116,6 +116,12 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       this.cohortReport(),
       this.preflight(),
     ]);
+    // v2：监护确认落盘恢复——重启后从配置恢复三项确认（不再每次开播重勾）
+    if (config.hardwareConfirmed && !(this.hardware.cameraFramingConfirmed && this.hardware.voiceReady && this.hardware.takeoverReady)) {
+      this.hardware.cameraFramingConfirmed = true;
+      this.hardware.voiceReady = true;
+      this.hardware.takeoverReady = true;
+    }
     // v8.1 起商品快照以自查确认为准（evidenceRefs 可为空）；仅对仍携带文件证据的
     // 旧快照校验证据是否失效（文件缺失/未注册则过期），自查模式快照不受影响。
     const visibleOffers = await Promise.all(offers.map(async (offer) => (
@@ -378,6 +384,12 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       && this.hardware.cameraFramingConfirmed,
     );
     await this.database.recordHardwareChange(before, this.hardware);
+    // v2：监护三项（画面/语音/接管）全部确认 → 落盘复用（重启不重确认）；任一取消 → 落盘取消
+    if (this.hardware.cameraFramingConfirmed && this.hardware.voiceReady && this.hardware.takeoverReady) {
+      await this.database.updateStoreConfig({ hardwareConfirmed: true });
+    } else if (input.cameraFramingConfirmed === false || input.voiceReady === false || input.takeoverReady === false) {
+      await this.database.updateStoreConfig({ hardwareConfirmed: false });
+    }
     return { ...this.hardware };
   }
 
