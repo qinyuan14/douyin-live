@@ -7,6 +7,10 @@ let controlWindow: BrowserWindow | null = null;
 let outputWindow: BrowserWindow | null = null;
 let apiProcess: ChildProcess | null = null;
 
+// v13.2：允许无用户手势自动播放音频（火山引擎试听/播报的 mp3 播放依赖此开关，
+// 否则 await 网络合成后 play() 可能被 Chromium 自动播放策略拦截导致"没声音"）
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 /**
  * 打包模式判定。
  * - 安装/便携包：app.isPackaged 为 true；

@@ -1260,6 +1260,26 @@ const DEFAULT_TTS: TtsConfig = {
   volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
 };
 
+/** v13.2：火山引擎常用音色（经典 TTS 接口 BV700 系列），下拉直接选，不用手填代码 */
+const VOLC_VOICES: Array<{ value: string; label: string }> = [
+  { value: 'BV700_streaming', label: '灿灿（女声·推荐）' },
+  { value: 'BV701_streaming', label: '炀炀（男声·推荐）' },
+  { value: 'BV001_streaming', label: '许小宝（男声）' },
+  { value: 'BV008_streaming', label: '聆秋（女声）' },
+  { value: 'BV010_streaming', label: '流苏（女声）' },
+  { value: 'BV011_streaming', label: '桃酥（女声）' },
+  { value: 'BV012_streaming', label: '星野（男声）' },
+  { value: 'BV017_streaming', label: '千岚（男声）' },
+  { value: 'BV018_streaming', label: '鹿鸣（男声）' },
+  { value: 'BV019_streaming', label: '雨荷（女声）' },
+  { value: 'BV020_streaming', label: '白鹭（女声）' },
+  { value: 'BV021_streaming', label: '青槐（女声）' },
+  { value: 'BV022_streaming', label: '竹子（女声）' },
+  { value: 'BV024_streaming', label: '灵犀（女声）' },
+  { value: 'BV032_streaming', label: '通用男声' },
+  { value: 'BV033_streaming', label: '通用女声' },
+];
+
 /** v13.1：播报音色设置——系统语音选择器 + 火山引擎（抖音同款）密钥与音色 */
 function VoiceSettings({ config, onSave, onError }: {
   config: StoreConfig;
@@ -1270,7 +1290,7 @@ function VoiceSettings({ config, onSave, onError }: {
   const [tts, setTts] = useState<TtsConfig>(() => ({ ...DEFAULT_TTS, ...config.tts, volcengine: { ...DEFAULT_TTS.volcengine, ...config.tts?.volcengine } }));
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     const load = () => setVoices(window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('zh')));
@@ -1281,11 +1301,12 @@ function VoiceSettings({ config, onSave, onError }: {
 
   async function save() {
     setSaving(true);
+    setNotice(null);
     try {
       await onSave(tts);
-      setTestResult(null);
-      onError('播报音色设置已保存；切换来源后请重新试听确认。');
+      setNotice({ tone: 'success', text: '✓ 音色设置已保存，现在播报会使用所选音色。' });
     } catch (error) {
+      setNotice({ tone: 'error', text: error instanceof Error ? error.message : '音色设置保存失败' });
       onError(error instanceof Error ? error.message : '音色设置保存失败');
     } finally {
       setSaving(false);
@@ -1294,20 +1315,25 @@ function VoiceSettings({ config, onSave, onError }: {
 
   async function testVoice() {
     setTesting(true);
-    setTestResult(null);
+    setNotice(null);
     try {
+      setNotice({ tone: 'success', text: '正在合成试听…' });
       const { audioBase64 } = await api.tts({ text: '你好，这是直播播报音色试听，请确认声音自然好听。', voiceType: tts.volcengine.voiceType || undefined });
       const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
-      audio.onended = () => setTestResult('试听播放完毕。');
-      void audio.play();
-      setTestResult('正在播放试听…');
+      audio.onended = () => setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
+      audio.onerror = () => setNotice({ tone: 'error', text: '试听音频播放失败，请检查声卡输出或重试。' });
+      await audio.play();
+      setNotice({ tone: 'success', text: '正在播放试听，请留意声音…' });
     } catch (error) {
-      setTestResult(null);
+      setNotice({ tone: 'error', text: error instanceof Error ? error.message : '音色试听失败' });
       onError(error instanceof Error ? error.message : '音色试听失败');
     } finally {
       setTesting(false);
     }
   }
+
+  const voiceInList = VOLC_VOICES.some((item) => item.value === tts.volcengine.voiceType);
+  const selectedVoiceLabel = VOLC_VOICES.find((item) => item.value === tts.volcengine.voiceType)?.label;
 
   return (
     <section className="voice-settings">
@@ -1326,11 +1352,21 @@ function VoiceSettings({ config, onSave, onError }: {
           <>
             <label className="wide"><span>AppID（火山引擎语音合成）</span><input value={tts.volcengine.appId} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, appId: e.target.value } })} placeholder="申请地址：console.volcengine.com → 语音技术 → 语音合成" /></label>
             <label className="wide"><span>访问令牌 Access Token</span><input value={tts.volcengine.accessToken} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, accessToken: e.target.value } })} placeholder="只保存在本机，不会上传" /></label>
-            <label className="wide"><span>音色类型（VoiceType）</span><input value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })} placeholder="例如 BV700_streaming（灿灿）" /><small>火山引擎音色列表可在控制台查看；填好后点「试听音色」验证。</small></label>
+            <label className="wide"><span>音色（直接选，不用记代码）</span><select value={voiceInList ? tts.volcengine.voiceType : '__custom__'} onChange={(e) => {
+              const value = e.target.value;
+              if (value === '__custom__') return;
+              setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: value } });
+            }}>
+              {VOLC_VOICES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              <option value="__custom__">{voiceInList ? '…（更多音色需手动输入代码）' : `自定义：${tts.volcengine.voiceType}（${selectedVoiceLabel ?? '未知音色'}）`}</option>
+            </select>
+            {!voiceInList && <input value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })} placeholder="手动输入火山音色代码，如 BV700_streaming" />}
+            <small>常用音色已列好直接选；控制台开通后 AppID 和令牌填一次即可，之后换音色只动下拉。</small></label>
+            <label className="wide"><span>Cluster（一般不用改；豆包大模型语音才用 volcano_mega）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="volcano_tts（经典语音）" /></label>
           </>
         )}
         {tts.provider === 'volcengine' && <button className="secondary-action wide" type="button" disabled={testing || !tts.volcengine.appId || !tts.volcengine.accessToken} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}
-        {testResult && <p className="voice-test-result">{testResult}</p>}
+        {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
         <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存音色设置</button></div>
       </div>
     </section>

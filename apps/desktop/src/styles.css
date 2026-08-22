@@ -491,6 +491,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .voice-form .wide { grid-column: 1 / -1; }
 .voice-form .secondary-action.wide, .voice-form .form-actions.wide { grid-column: 1 / -1; }
 .voice-test-result { grid-column: 1 / -1; margin: 0; padding: 8px 12px; background: var(--green-soft); border-radius: 9px; color: #205d44; font-size: 12px; font-weight: 700; }
+.voice-test-result.error { background: var(--red-soft); color: var(--red); }
 
 @media (max-width: 1100px) {
   .task-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

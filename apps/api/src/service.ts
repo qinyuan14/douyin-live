@@ -171,12 +171,15 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     if (config.tts?.provider !== 'volcengine' || !v?.appId || !v?.accessToken) {
       throw new Error('尚未开启火山引擎语音：请先在「语音设置」中填写 AppID 与访问令牌，并切换音色来源');
     }
-    const voiceType = parsed.voiceType || v.voiceType || 'BV700_streaming';
+    const voiceType = (parsed.voiceType || v.voiceType || 'BV700_streaming').trim();
+    const appId = v.appId.trim();
+    const accessToken = v.accessToken.trim();
+    const cluster = (v.cluster || 'volcano_tts').trim();
     const response = await fetch('https://openspeech.bytedance.com/api/v1/tts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer;${v.accessToken}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer;${accessToken}` },
       body: JSON.stringify({
-        app: { appid: v.appId, token: v.accessToken, cluster: v.cluster || 'volcano_tts' },
+        app: { appid: appId, token: accessToken, cluster },
         user: { uid: 'liveops-local' },
         audio: { voice_type: voiceType, encoding: 'mp3', speed_ratio: 1.0, volume_ratio: 1.0, pitch_ratio: 1.0 },
         request: { reqid: crypto.randomUUID(), text: parsed.text, operation: 'query' },
@@ -184,7 +187,10 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     });
     const payload = await response.json().catch(() => null) as { code?: number; message?: string; data?: { audio?: string } } | null;
     if (!response.ok || payload?.code !== 3000 || !payload.data?.audio) {
-      throw new Error(`火山引擎语音合成失败：${payload?.message ?? `HTTP ${response.status}`}（请检查密钥与音色类型）`);
+      const hint = typeof payload?.message === 'string' && payload.message.length > 0
+        ? payload.message
+        : `HTTP ${response.status}`;
+      throw new Error(`火山引擎语音合成失败（${hint}）。请核对：AppID/令牌是否正确、音色代码是否存在、Cluster 是否匹配（经典语音用 volcano_tts，豆包大模型语音用 volcano_mega）`);
     }
     return { audioBase64: payload.data.audio, format: 'mp3' };
   }
