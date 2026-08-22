@@ -1260,24 +1260,26 @@ const DEFAULT_TTS: TtsConfig = {
   volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
 };
 
-/** v13.2：火山引擎常用音色（经典 TTS 接口 BV700 系列），下拉直接选，不用手填代码 */
+/** v13.2：火山引擎常用音色（经典 BV700 系列 + 豆包大模型 zh_*_moon_bigtts 系列），下拉直接选，不用手填代码 */
 const VOLC_VOICES: Array<{ value: string; label: string }> = [
-  { value: 'BV700_streaming', label: '灿灿（女声·推荐）' },
-  { value: 'BV701_streaming', label: '炀炀（男声·推荐）' },
-  { value: 'BV001_streaming', label: '许小宝（男声）' },
-  { value: 'BV008_streaming', label: '聆秋（女声）' },
-  { value: 'BV010_streaming', label: '流苏（女声）' },
-  { value: 'BV011_streaming', label: '桃酥（女声）' },
-  { value: 'BV012_streaming', label: '星野（男声）' },
-  { value: 'BV017_streaming', label: '千岚（男声）' },
-  { value: 'BV018_streaming', label: '鹿鸣（男声）' },
-  { value: 'BV019_streaming', label: '雨荷（女声）' },
-  { value: 'BV020_streaming', label: '白鹭（女声）' },
-  { value: 'BV021_streaming', label: '青槐（女声）' },
-  { value: 'BV022_streaming', label: '竹子（女声）' },
-  { value: 'BV024_streaming', label: '灵犀（女声）' },
-  { value: 'BV032_streaming', label: '通用男声' },
-  { value: 'BV033_streaming', label: '通用女声' },
+  { value: 'BV700_streaming', label: '灿灿（经典·女声）' },
+  { value: 'BV701_streaming', label: '炀炀（经典·男声）' },
+  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿·豆包大模型（女声）' },
+  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬·豆包大模型（男声）' },
+  { value: 'BV001_streaming', label: '许小宝（经典·男声）' },
+  { value: 'BV008_streaming', label: '聆秋（经典·女声）' },
+  { value: 'BV010_streaming', label: '流苏（经典·女声）' },
+  { value: 'BV011_streaming', label: '桃酥（经典·女声）' },
+  { value: 'BV012_streaming', label: '星野（经典·男声）' },
+  { value: 'BV017_streaming', label: '千岚（经典·男声）' },
+  { value: 'BV018_streaming', label: '鹿鸣（经典·男声）' },
+  { value: 'BV019_streaming', label: '雨荷（经典·女声）' },
+  { value: 'BV020_streaming', label: '白鹭（经典·女声）' },
+  { value: 'BV021_streaming', label: '青槐（经典·女声）' },
+  { value: 'BV022_streaming', label: '竹子（经典·女声）' },
+  { value: 'BV024_streaming', label: '灵犀（经典·女声）' },
+  { value: 'BV032_streaming', label: '通用男声（经典）' },
+  { value: 'BV033_streaming', label: '通用女声（经典）' },
 ];
 
 /** v13.1：播报音色设置——系统语音选择器 + 火山引擎（抖音同款）密钥与音色 */
@@ -1361,8 +1363,8 @@ function VoiceSettings({ config, onSave, onError }: {
               <option value="__custom__">{voiceInList ? '…（更多音色需手动输入代码）' : `自定义：${tts.volcengine.voiceType}（${selectedVoiceLabel ?? '未知音色'}）`}</option>
             </select>
             {!voiceInList && <input value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })} placeholder="手动输入火山音色代码，如 BV700_streaming" />}
-            <small>常用音色已列好直接选；控制台开通后 AppID 和令牌填一次即可，之后换音色只动下拉。</small></label>
-            <label className="wide"><span>Cluster（一般不用改；豆包大模型语音才用 volcano_mega）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="volcano_tts（经典语音）" /></label>
+            <small>音色按「经典」/「豆包大模型」自动走对应接口，选哪个都能直接试听；控制台开通后 AppID 和令牌填一次即可，之后换音色只动下拉。</small></label>
+            <label className="wide"><span>Cluster（一般不用填，按音色自动选择；特殊账号可手动指定）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="留空自动：经典音色→volcano_tts，大模型音色→volcano_mega" /></label>
           </>
         )}
         {tts.provider === 'volcengine' && <button className="secondary-action wide" type="button" disabled={testing || !tts.volcengine.appId || !tts.volcengine.accessToken} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}

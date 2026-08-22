@@ -32,6 +32,12 @@ import {
 import type { BackupIntegrity, BackupSummary, RestoreResult } from '@liveops/live-contracts';
 import { buildRunSheet } from './run-sheet.js';
 
+/** v16.1：经典音色 → 豆包大模型音色 映射（经典接口遇授权类错误时自动换大模型接口重试） */
+const MEGA_VOICE_FALLBACK: Record<string, string> = {
+  BV700_streaming: 'zh_female_cancan_moon_bigtts',
+  BV701_streaming: 'zh_male_yunyang_moon_bigtts',
+};
+
 const APPROVED_KNOWLEDGE_EVIDENCE_ID = '00000000-0000-4000-8000-000000000014';
 const APPROVED_KNOWLEDGE_DEFINITIONS = [
   {
@@ -161,8 +167,9 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * v13.1：火山引擎语音合成代理（抖音同款音色）。
-   * 密钥只保存在本机 config，播报时由内置 API 代理调用，不外发。
-   * 未配置密钥/未开启时返回明确错误，前端回退系统语音。
+   * v16.1：支持两套接口自动识别——经典语音（v1 + volcano_tts + BV 系列音色）与
+   * 豆包大模型语音（v3 + volcano_mega + zh_*_moon_bigtts 音色），按音色代码自动选接口，
+   * 经典接口遇授权类错误时自动用同款大模型音色重试。密钥只存本机 config，不外发。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
     const parsed = z.object({ text: z.string().min(1).max(500), voiceType: z.string().optional() }).parse(input);
@@ -174,35 +181,67 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     const voiceType = (parsed.voiceType || v.voiceType || 'BV700_streaming').trim();
     const appId = v.appId.trim();
     const accessToken = v.accessToken.trim();
-    const cluster = (v.cluster || 'volcano_tts').trim();
-    const response = await fetch('https://openspeech.bytedance.com/api/v1/tts', {
+    const customCluster = (v.cluster || '').trim();
+
+    // 组装尝试序列：首选音色（接口由音色代码或自定义 Cluster 决定），授权类错误时自动补试豆包大模型音色
+    const isMegaRequested = voiceType.startsWith('zh_') || customCluster === 'volcano_mega';
+    const attempts: Array<{ voice: string; cluster: string }> = [
+      { voice: voiceType, cluster: customCluster || (isMegaRequested ? 'volcano_mega' : 'volcano_tts') },
+    ];
+    const megaFallback = MEGA_VOICE_FALLBACK[voiceType];
+    if (!isMegaRequested && megaFallback) {
+      attempts.push({ voice: megaFallback, cluster: 'volcano_mega' });
+    }
+
+    let lastError = '';
+    for (let index = 0; index < attempts.length; index += 1) {
+      const attempt = attempts[index]!;
+      try {
+        return await this.volcTtsRequest(appId, accessToken, attempt.cluster, attempt.voice, parsed.text);
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        const isGrant = /load grant|grant not found|access denied|forbidden|unauthorized|鉴权失败|not authorized|invalid token/i.test(lastError);
+        // 仅授权/令牌类错误继续尝试另一套接口；音色/额度等其他错误直接抛出
+        if (!isGrant || index >= attempts.length - 1) break;
+      }
+    }
+    const triedNote = attempts.length > 1 ? '（已自动尝试 经典语音 与 豆包大模型 两套接口，仍失败）' : '';
+    throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(lastError)}${triedNote}`);
+  }
+
+  /** 单次火山 TTS 请求：按 cluster 自动选 v1 经典或 v3 豆包大模型接口 */
+  private async volcTtsRequest(appId: string, token: string, cluster: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
+    const isMega = cluster === 'volcano_mega';
+    const url = isMega ? 'https://openspeech.bytedance.com/api/v3/tts' : 'https://openspeech.bytedance.com/api/v1/tts';
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer;${accessToken}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer;${token}` },
       body: JSON.stringify({
-        app: { appid: appId, token: accessToken, cluster },
+        app: { appid: appId, token, cluster },
         user: { uid: 'liveops-local' },
         audio: { voice_type: voiceType, encoding: 'mp3', speed_ratio: 1.0, volume_ratio: 1.0, pitch_ratio: 1.0 },
-        request: { reqid: crypto.randomUUID(), text: parsed.text, operation: 'query' },
+        request: { reqid: crypto.randomUUID(), text, operation: 'query' },
       }),
+      signal: AbortSignal.timeout(15_000),
     });
     const payload = await response.json().catch(() => null) as { code?: number; message?: string; data?: { audio?: string } } | null;
     if (!response.ok || payload?.code !== 3000 || !payload.data?.audio) {
       const raw = typeof payload?.message === 'string' && payload.message.length > 0
         ? payload.message
         : `HTTP ${response.status}`;
-      throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(raw)}`);
+      throw new Error(raw);
     }
     return { audioBase64: payload.data.audio, format: 'mp3' };
   }
 
   /** 把火山引擎返回的原始错误翻译成大白话（常见鉴权/音色/限流场景） */
   private describeVolcTtsError(raw: string): string {
-    const grantPatterns = ['load grant', 'grant not found', 'grant type', 'access denied', 'forbidden', 'unauthorized', '鉴权失败', 'token', 'not authorized'];
+    const grantPatterns = ['load grant', 'grant not found', 'grant type', 'access denied', 'forbidden', 'unauthorized', '鉴权失败', 'invalid token', 'not authorized'];
     if (grantPatterns.some((pattern) => raw.toLowerCase().includes(pattern))) {
       return '「访问令牌无效」——请回火山控制台核对：① 进入 语音技术→语音合成→应用管理，复制「同一个应用」的 AppID 和 Access Token（完整复制，别带空格/漏字符）；② 确认该应用已开通语音合成服务；③ 若重置过令牌请用最新那个。';
     }
-    if (/4040|voice.*not.*found|音色.*不存在/.test(raw)) {
-      return '「音色代码不存在」——请在下拉里换个音色，或确认手动输入的代码正确（如 BV700_streaming）。';
+    if (/4040|voice.*not.*found|音色.*不存在|voice type/.test(raw)) {
+      return '「音色代码不存在」——请在下拉里换个音色，或确认手动输入的代码正确（经典如 BV700_streaming；豆包大模型如 zh_female_cancan_moon_bigtts）。';
     }
     if (/4004|app.*not.*found|应用.*不存在/.test(raw)) {
       return '「AppID 无效」——请核对控制台里的 AppID 是否完整复制。';
