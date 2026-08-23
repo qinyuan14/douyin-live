@@ -72,8 +72,16 @@ async function startBundledApi(): Promise<void> {
       LIVE_PROJECT_ROOT: dataRoot,
       LIVE_DOCS_DIR: join(dataRoot, 'docs'),
     },
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: false,
+  });
+  // 收集内置服务的输出，启动失败时把原因附到错误提示里，方便定位
+  apiStderr = '';
+  apiProcess.stderr?.on('data', (chunk: Buffer) => {
+    apiStderr = `${apiStderr}${chunk.toString('utf8')}`.slice(-2_000);
+  });
+  apiProcess.stdout?.on('data', (chunk: Buffer) => {
+    apiStderr = `${apiStderr}${chunk.toString('utf8')}`.slice(-2_000);
   });
   apiProcess.on('exit', (code) => {
     console.error(`内置本地服务已退出（code=${code}）`);
@@ -82,21 +90,27 @@ async function startBundledApi(): Promise<void> {
   await waitForApiHealth();
 }
 
+/** 内置服务输出缓冲（用于启动失败时展示原因） */
+let apiStderr = '';
+
 async function waitForApiHealth(): Promise<void> {
   const deadline = Date.now() + 25_000;
+  let lastReason = '端口 3188 在 25 秒内没有就绪';
   while (Date.now() < deadline) {
     if (apiProcess?.exitCode !== null && apiProcess?.exitCode !== undefined) {
-      throw new Error(`内置本地服务启动失败（退出码 ${apiProcess.exitCode}）`);
+      const stderrHint = apiStderr.trim().slice(-400);
+      throw new Error(`内置本地服务启动失败（退出码 ${apiProcess.exitCode}）${stderrHint ? `\n\n服务输出：\n${stderrHint}` : ''}\n\n请这样处理：\n① 先关闭所有已打开的系统窗口（含任务栏图标）；\n② 按 Ctrl+Shift+Esc 打开任务管理器，结束所有「实景直播经营系统」进程后重新打开。`);
     }
     try {
       const response = await fetch('http://127.0.0.1:3188/api/health', { signal: AbortSignal.timeout(1_500) });
       if (response.ok) return;
+      lastReason = `端口 3188 已被其他程序响应（HTTP ${response.status}）——说明有旧实例或其他程序占用了端口`;
     } catch {
-      // 服务尚未就绪，继续轮询
+      lastReason = '端口 3188 无响应（可能被其他程序占用，或服务启动缓慢）';
     }
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
-  throw new Error('内置本地服务 25 秒内未就绪，请确认端口 3188 未被其他程序占用');
+  throw new Error(`系统启动失败：${lastReason}。\n\n请这样处理：\n① 先关闭所有已打开的系统窗口（含任务栏/托盘图标）；\n② 按 Ctrl+Shift+Esc 打开任务管理器，结束所有「实景直播经营系统」进程后重新打开；\n③ 若仍不行，请重启电脑后再打开。`);
 }
 
 function stopBundledApi(): void {
