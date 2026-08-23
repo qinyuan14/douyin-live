@@ -1,9 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
+import WebSocket from 'ws';
 import {
   KnowledgeItemSchema,
   OfferSnapshotSchema,
@@ -172,17 +173,20 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * v13.1：火山引擎语音合成代理（抖音同款音色）。
-   * v16.1：支持两套接口自动识别——经典语音（v1 + volcano_tts + BV 系列音色）与
-   * 豆包大模型语音（v3 + volcano_mega + zh_*_moon_bigtts 音色），按音色代码自动选接口，
-   * 经典接口遇授权类错误时自动用同款大模型音色重试。
-   * v18.1：新增「火山方舟」直连——方舟 API Key（sk- 开头）走 ark.cn-beijing.volces.com/api/v3/tts，
-   * OpenAI 兼容格式（Authorization: Bearer {API_KEY}，空格分隔）。密钥只存本机 config，不外发。
+   * v13.1：语音合成代理。
+   * v16.1：火山双接口自动识别 + v18.1 火山方舟直连。
+   * v21.1：新增「微软免费在线语音（Edge TTS）」——零密钥、无需开通，走
+   * wss://speech.platform.bing.com 合成 mp3；音色自然（晓晓/云希/云扬等）。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
     const parsed = z.object({ text: z.string().min(1).max(500), voiceType: z.string().optional() }).parse(input);
     const config = await this.database.getStoreConfig();
     const ttsConfig = config.tts;
+    // 微软免费在线语音：零密钥
+    if (ttsConfig?.provider === 'edge') {
+      const voiceType = (parsed.voiceType || ttsConfig.edge?.voiceType || 'zh-CN-XiaoxiaoNeural').trim();
+      return this.edgeTtsRequest(parsed.text, voiceType);
+    }
     // 火山方舟：API Key 直连
     if (ttsConfig?.provider === 'ark') {
       const a = ttsConfig.ark;
@@ -251,6 +255,106 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       throw new Error(raw);
     }
     return { audioBase64: payload.data.audio, format: 'mp3' };
+  }
+
+  /**
+   * v21.1：微软免费在线语音（Edge TTS）。
+   * 协议：WebSocket 连接 speech.platform.bing.com，Sec-MS-GEC 动态令牌
+   * （5 分钟窗口时间戳 + 固定 TrustedClientToken 的 SHA-256），发 config + SSML，
+   * 收集二进制音频帧（剥离 Path:audio 头），返回 mp3 base64。零密钥。
+   */
+  private edgeTtsRequest(text: string, voiceType: string): Promise<{ audioBase64: string; format: string }> {
+    const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+    // Sec-MS-GEC 动态令牌（与 edge-tts 的 DRM.generate_sec_ms_gec 一致）：
+    // unix 秒 + WIN_EPOCH → 向下取整到 300s → 转 100ns 单位（×10^7）→ 拼 token 后 SHA-256 大写 hex
+    const CHROMIUM_VERSION = '143.0.3650.75';
+    let ticks = Date.now() / 1000;
+    ticks += 11_644_473_600;
+    ticks -= ticks % 300;
+    ticks *= 10_000_000;
+    const gec = createHash('sha256').update(`${Math.round(ticks)}${TRUSTED_CLIENT_TOKEN}`, 'ascii').digest('hex').toUpperCase();
+    const connectionId = crypto.randomUUID().replace(/-/g, '').toUpperCase();
+    const muid = randomBytes(16).toString('hex').toUpperCase();
+    const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1`
+      + `?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}`
+      + `&Sec-MS-GEC=${gec}`
+      + `&Sec-MS-GEC-Version=1-${CHROMIUM_VERSION}`
+      + `&ConnectionId=${connectionId}`;
+
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      let finished = false;
+      const timer = setTimeout(() => {
+        if (!finished) { finished = true; try { ws.close(); } catch { /* noop */ } reject(new Error('在线语音合成超时（请检查网络能否访问微软服务）')); }
+      }, 20_000);
+      const ws = new WebSocket(url, {
+        headers: {
+          Pragma: 'no-cache',
+          'Cache-Control': 'no-cache',
+          Origin: 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
+          'Sec-WebSocket-Version': '13',
+          'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROMIUM_VERSION.split('.')[0]}.0.0.0 Safari/537.36 Edg/${CHROMIUM_VERSION.split('.')[0]}.0.0.0`,
+          'Accept-Encoding': 'gzip, deflate, br, zstd',
+          'Accept-Language': 'en-US,en;q=0.9',
+          Cookie: `muid=${muid};`,
+        },
+      });
+      const escaped = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+      const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>`
+        + `<voice name='${voiceType}'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>${escaped}</prosody></voice></speak>`;
+      // 与 edge-tts date_to_string() 一致的 X-Timestamp 格式（模仿 Edge 浏览器 bug）
+      const dateToString = () => {
+        const d = new Date();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${days[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${pad(d.getUTCDate())} ${d.getUTCFullYear()} `
+          + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} GMT+0000 (Coordinated Universal Time)`;
+      };
+      const configMessage = `X-Timestamp:${dateToString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n`
+        + JSON.stringify({ context: { synthesis: { audio: { metadataoptions: { sentenceBoundaryEnabled: 'false', wordBoundaryEnabled: 'false' }, outputFormat: 'audio-24khz-48kbitrate-mono-mp3' } } } });
+      const ssmlMessage = `X-RequestId:${randomBytes(16).toString('hex').toUpperCase()}\r\n`
+        + `Content-Type:application/ssml+xml\r\nX-Timestamp:${dateToString()}Z\r\nPath:ssml\r\n\r\n${ssml}`;
+      ws.on('open', () => {
+        ws.send(configMessage);
+        ws.send(ssmlMessage);
+      });
+      ws.on('message', (data: Buffer, isBinary: boolean) => {
+        if (!isBinary) {
+          // 文本帧带头（X-RequestId/Path/Content-Type + \r\n\r\n + JSON），按头解析
+          const raw = data.toString('utf8');
+          const headerEnd = raw.indexOf('\r\n\r\n');
+          const head = headerEnd !== -1 ? raw.slice(0, headerEnd) : raw;
+          if (head.includes('Path:turn.end')) {
+            if (!finished) { finished = true; ws.close(); }
+          }
+          return;
+        }
+        // 二进制帧：前 2 字节为头长度（大端），Path 头在头区中（可能不是第一个头）
+        if (data.length < 3) return;
+        const headerLength = data.readUInt16BE(0);
+        if (headerLength <= 0 || headerLength > 8192) return;
+        const header = data.subarray(2, 2 + headerLength).toString('utf8');
+        if (header.includes('Path:audio')) {
+          chunks.push(data.subarray(2 + headerLength));
+        }
+      });
+      ws.on('close', () => {
+        clearTimeout(timer);
+        if (finished) return;
+        finished = true;
+        if (chunks.length === 0) {
+          reject(new Error('在线语音没有返回音频（可能网络无法访问微软服务，或系统时间不准导致令牌失效）'));
+        } else {
+          resolve({ audioBase64: Buffer.concat(chunks).toString('base64'), format: 'mp3' });
+        }
+      });
+      ws.on('error', () => {
+        if (!finished) { finished = true; clearTimeout(timer); try { ws.close(); } catch { /* noop */ } reject(new Error('无法连接在线语音服务（请检查网络）')); }
+      });
+    });
   }
 
   /** 火山方舟 TTS 直连（OpenAI 兼容 /api/v3/tts）：Authorization: Bearer {API_KEY}（空格分隔，区别于语音合成的分号） */

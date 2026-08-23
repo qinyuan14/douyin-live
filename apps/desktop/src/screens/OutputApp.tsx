@@ -122,6 +122,7 @@ export function OutputApp() {
       if (!t) return false;
       if (t.provider === 'volcengine') return Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken);
       if (t.provider === 'ark') return Boolean(t.ark.apiKey) && Boolean(t.ark.model);
+      if (t.provider === 'edge') return true; // 免费在线音色，零密钥
       return false;
     })();
     const speakNext = (index: number) => {
@@ -198,14 +199,18 @@ export function OutputApp() {
           ? Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken)
           : t.provider === 'ark'
             ? Boolean(t.ark.apiKey) && Boolean(t.ark.model)
-            : false) : false;
+            : t.provider === 'edge'
+              ? true
+              : false) : false;
         const testText = '实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。';
         if (volcReady) {
           void api.tts({ text: testText, voiceType: t?.provider === 'ark' ? (t.ark.voiceType || undefined) : (t?.volcengine.voiceType || undefined) })
             .then(({ audioBase64 }) => {
               const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
               audio.onended = () => {
-                const label = t?.provider === 'ark' ? `火山方舟·${t.ark.voiceType ?? ''}` : `火山引擎·${t?.volcengine.voiceType ?? ''}`;
+                const label = t?.provider === 'ark' ? `火山方舟·${t.ark.voiceType ?? ''}`
+                  : t?.provider === 'edge' ? `微软在线·${t.edge.voiceType ?? ''}`
+                    : `火山引擎·${t?.volcengine.voiceType ?? ''}`;
                 channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: label });
               };
               audio.onerror = () => {

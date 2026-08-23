@@ -163,10 +163,13 @@ export const PreflightCheckSchema = z.object({
 export type PreflightCheck = z.infer<typeof PreflightCheckSchema>;
 
 export const TtsConfigSchema = z.object({
-  // 播报音色来源：system（Windows 系统语音）| volcengine（火山·语音合成 AppID/Token）
-  // | ark（火山方舟 API Key，sk- 开头，走 ark.cn-beijing.volces.com/api/v3/tts）
-  provider: z.enum(['system', 'volcengine', 'ark']),
+  // 播报音色来源：system（Windows 系统语音）| edge（微软免费在线语音，无需密钥）
+  // | volcengine（火山·语音合成 AppID/Token）| ark（火山方舟 API Key）
+  provider: z.enum(['system', 'edge', 'volcengine', 'ark']),
   systemVoiceName: z.string().nullable(),
+  edge: z.object({
+    voiceType: z.string(),
+  }),
   volcengine: z.object({
     appId: z.string(),
     accessToken: z.string(),
@@ -191,10 +194,11 @@ export const StoreConfigSchema = z.object({
   serviceAreasConfirmed: z.boolean(),
   productCategories: z.array(z.string()),
   onboardingCompleted: z.boolean(),
-  // v13.1：播报音色设置（系统语音 / 火山引擎·抖音同款 / 火山方舟 API Key）
+  // v13.1：播报音色设置（系统语音 / 微软免费在线 / 火山引擎 / 火山方舟）
   tts: TtsConfigSchema.default({
     provider: 'system',
     systemVoiceName: null,
+    edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
     volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
     ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   }),

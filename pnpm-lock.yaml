@@ -81,6 +81,9 @@ importers:
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       eslint:
         specifier: 9.39.2
         version: 9.39.2(jiti@2.7.0)
@@ -915,6 +918,9 @@ packages:
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
 
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+
   '@typescript-eslint/eslint-plugin@8.46.1':
     resolution: {integrity: sha512-rUsLh8PXmBjdiPY+Emjz9NX2yHvhS11v0SR6xNJkm5GM1MO9ea/1GoDKlHHZGrOJclL/cZ2i/vRUYVtjRhrHVQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -1035,6 +1041,7 @@ packages:
   '@xmldom/xmldom@0.8.14':
     resolution: {integrity: sha512-T4EDRUBVZYRldYApjEJiU0e1stYWaRAX7CuSnKzrpwdZKo53zGV8/pqfzV6FfwNl9YThD2OumQYvqtvjvgG7aQ==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -3886,6 +3893,10 @@ snapshots:
       csstype: 3.2.3
 
   '@types/responselike@1.0.3':
+    dependencies:
+      '@types/node': 24.13.3
+
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 24.13.3
 
