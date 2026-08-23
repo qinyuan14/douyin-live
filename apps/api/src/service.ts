@@ -179,16 +179,22 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * wss://speech.platform.bing.com 合成 mp3；音色自然（晓晓/云希/云扬等）。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
-    const parsed = z.object({ text: z.string().min(1).max(500), voiceType: z.string().optional() }).parse(input);
+    const parsed = z.object({
+      text: z.string().min(1).max(500),
+      voiceType: z.string().optional(),
+      // 试听时前端传当前界面选择的来源（覆盖已保存配置），实现"所见即所得"；播报不传，用已保存配置
+      provider: z.enum(['system', 'edge', 'volcengine', 'ark']).optional(),
+    }).parse(input);
     const config = await this.database.getStoreConfig();
     const ttsConfig = config.tts;
+    const effectiveProvider = parsed.provider ?? ttsConfig?.provider;
     // 微软免费在线语音：零密钥
-    if (ttsConfig?.provider === 'edge') {
-      const voiceType = (parsed.voiceType || ttsConfig.edge?.voiceType || 'zh-CN-XiaoxiaoNeural').trim();
+    if (effectiveProvider === 'edge') {
+      const voiceType = (parsed.voiceType || ttsConfig?.edge?.voiceType || 'zh-CN-XiaoxiaoNeural').trim();
       return this.edgeTtsRequest(parsed.text, voiceType);
     }
     // 火山方舟：API Key 直连
-    if (ttsConfig?.provider === 'ark') {
+    if (effectiveProvider === 'ark') {
       const a = ttsConfig.ark;
       if (!a?.apiKey?.trim()) {
         throw new Error('尚未填写火山方舟 API Key：请在「播报音色」中选择「火山方舟」并填入 API Key（sk- 开头）与模型');
@@ -198,7 +204,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       return this.arkTtsRequest(a.apiKey.trim(), model, voiceType, parsed.text);
     }
     const v = ttsConfig?.volcengine;
-    if (ttsConfig?.provider !== 'volcengine' || !v?.appId || !v?.accessToken) {
+    if (effectiveProvider !== 'volcengine' || !v?.appId || !v?.accessToken) {
       throw new Error('尚未开启火山引擎语音：请先在「语音设置」中填写 AppID 与访问令牌，并切换音色来源');
     }
     const voiceType = (parsed.voiceType || v.voiceType || 'BV700_streaming').trim();

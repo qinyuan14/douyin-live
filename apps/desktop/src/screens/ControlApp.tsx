@@ -1328,7 +1328,8 @@ function VoiceSettings({ config, onSave, onError }: {
           : tts.provider === 'edge'
             ? tts.edge.voiceType || undefined
             : undefined;
-      const { audioBase64 } = await api.tts({ text: '你好，这是直播播报音色试听，请确认声音自然好听。', voiceType });
+      // 试听跟随界面当前选择（传 provider 覆盖已保存配置，实现所见即所得）
+      const { audioBase64 } = await api.tts({ text: '你好，这是直播播报音色试听，请确认声音自然好听。', voiceType, provider: tts.provider });
       const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
       audio.onended = () => setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
       audio.onerror = () => setNotice({ tone: 'error', text: '试听音频播放失败，请检查声卡输出或重试。' });
