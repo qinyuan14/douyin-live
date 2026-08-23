@@ -177,8 +177,21 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * v16.1：火山双接口自动识别 + v18.1 火山方舟直连。
    * v21.1：新增「微软免费在线语音（Edge TTS）」——零密钥、无需开通，走
    * wss://speech.platform.bing.com 合成 mp3；音色自然（晓晓/云希/云扬等）。
+   * v25.1：超时类错误统一翻译为大白话（signal timed out 等不再裸抛）。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
+    try {
+      return await this.ttsInner(input);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (/signal timed out|timeout|timed out|abort/i.test(msg)) {
+        throw new Error('语音服务响应超时：网络较慢或服务暂时不可达。请点「重试」再试一次；若持续超时，可先改用「系统语音」播报，或换一个「免费在线音色」。');
+      }
+      throw error;
+    }
+  }
+
+  private async ttsInner(input: unknown): Promise<{ audioBase64: string; format: string }> {
     const parsed = z.object({
       text: z.string().min(1).max(500),
       voiceType: z.string().optional(),
@@ -265,11 +278,19 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * v21.1：微软免费在线语音（Edge TTS）。
-   * 协议：WebSocket 连接 speech.platform.bing.com，Sec-MS-GEC 动态令牌
-   * （5 分钟窗口时间戳 + 固定 TrustedClientToken 的 SHA-256），发 config + SSML，
-   * 收集二进制音频帧（剥离 Path:audio 头），返回 mp3 base64。零密钥。
+   * v25.1：连接/超时类失败自动重试一次（微软服务偶发慢），并统一翻译超时错误为大白话。
    */
   private edgeTtsRequest(text: string, voiceType: string): Promise<{ audioBase64: string; format: string }> {
+    return this.edgeTtsAttempt(text, voiceType).catch((error) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (/超时|timeout|timed out|ECONN|ETIMEDOUT|连接/.test(msg)) {
+        return this.edgeTtsAttempt(text, voiceType);
+      }
+      throw error;
+    });
+  }
+
+  private edgeTtsAttempt(text: string, voiceType: string): Promise<{ audioBase64: string; format: string }> {
     const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
     // Sec-MS-GEC 动态令牌（与 edge-tts 的 DRM.generate_sec_ms_gec 一致）：
     // unix 秒 + WIN_EPOCH → 向下取整到 300s → 转 100ns 单位（×10^7）→ 拼 token 后 SHA-256 大写 hex
