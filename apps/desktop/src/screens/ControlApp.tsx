@@ -1214,7 +1214,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 
       <VoiceSettings config={data.config} onSave={onSaveTts} onError={onError} />
 
-      <PregenScripts scripts={data.config.pregenScripts ?? []} onSave={onSaveScripts} onError={onError} />
+      <PregenScripts scripts={data.config.pregenScripts ?? []} runSheet={data.runSheet} onSave={onSaveScripts} onError={onError} />
 
       <section className="hardware-confirm">
         <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>直播监护确认（数字人模式）</h2><p>数字人直播不连接真实摄像头；只需确认画面合规、声音线路正确、真人可随时接管。这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
@@ -1442,17 +1442,31 @@ function VoiceSettings({ config, onSave, onError }: {
   );
 }
 
-/** v31.1：话术稿与本地音频——老板维护直播话术，一键预生成音频存本地；直播时命中本地音频播放，不消耗 API */
-function PregenScripts({ scripts, onSave, onError }: {
+/** v31.1：话术稿与本地音频——自动同步直播流程稿，一键预生成音频存本地；直播时命中本地音频播放，不消耗 API */
+function PregenScripts({ scripts, runSheet, onSave, onError }: {
   scripts: string[];
+  runSheet: RunSheetSegment[];
   onSave: (scripts: string[]) => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [text, setText] = useState(scripts.join('\n'));
+  // 首次打开：已保存的话术稿优先；为空则自动从直播流程（run sheet）导入，不用老板手粘
+  const [text, setText] = useState<string>(() => {
+    const saved = scripts.join('\n').trim();
+    if (saved) return saved;
+    return Array.from(new Set(runSheet.map((s) => s.script.trim()).filter(Boolean))).join('\n');
+  });
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [result, setResult] = useState<{ ok: number; cached: number; failed: number } | null>(null);
+
+  /** 从直播流程重新导入（去重追加） */
+  function importFromRunSheet() {
+    const current = text.split('\n').map((s) => s.trim()).filter(Boolean);
+    const merged = Array.from(new Set([...current, ...runSheet.map((s) => s.script.trim()).filter(Boolean)]));
+    setText(merged.join('\n'));
+    setNotice({ tone: 'success', text: `✓ 已从直播流程导入话术（共 ${merged.length} 条）。点「保存话术稿」后即可生成音频。` });
+  }
 
   const lines = () => text.split('\n').map((s) => s.trim()).filter(Boolean);
 
@@ -1502,10 +1516,11 @@ function PregenScripts({ scripts, onSave, onError }: {
 
   return (
     <section className="voice-settings">
-      <div className="panel-heading"><FileAudio aria-hidden="true" /><div><h2>话术稿与本地音频（省钱模式）</h2><p>把要播的话术提前写成稿子、一键生成音频存到本机；直播播到相同内容时<b>直接播本地音频，不再消耗 API 费用</b>。每行一条话术。</p></div></div>
+      <div className="panel-heading"><FileAudio aria-hidden="true" /><div><h2>话术稿与本地音频（省钱模式）</h2><p>已自动同步<b>直播流程的稿子</b>（也可手动改）；一键生成音频存本机，直播播到相同内容<b>直接播本地音频，不再消耗 API 费用</b>。每行一条话术。</p></div></div>
       <div className="voice-form">
         <label className="wide"><span>直播话术稿（每行一条，会原样播报）</span><textarea className="script-editor" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'欢迎各位来到直播间，今天我们给大家带来了…\n这个商品日常价 99，今天直播间只要 69…\n喜欢的家人点点关注，有问题随时问…'} /></label>
         <div className="form-actions wide">
+          <button className="secondary-action" type="button" onClick={importFromRunSheet}><RefreshCw aria-hidden="true" />重新导入直播流程话术</button>
           <button className="secondary-action" type="button" disabled={saving} onClick={() => void saveScripts()}>{saving ? <LoaderCircle className="spin" /> : <Save />}保存话术稿</button>
           <button className="primary-action" type="button" disabled={generating} onClick={() => void generateAll()}>{generating ? <LoaderCircle className="spin" /> : <Wand2 />}生成全部音频（本地）</button>
         </div>
