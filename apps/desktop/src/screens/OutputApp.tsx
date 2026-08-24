@@ -120,7 +120,7 @@ export function OutputApp() {
     const volcReady = (() => {
       const t = ttsRef.current;
       if (!t) return false;
-      if (t.provider === 'volcengine') return Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken);
+      if (t.provider === 'volcengine') return Boolean(t.volcengine.apiKey) || (Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken));
       if (t.provider === 'ark') return Boolean(t.ark.apiKey) && Boolean(t.ark.model);
       if (t.provider === 'edge') return true; // 免费在线音色，零密钥
       return false;
@@ -196,7 +196,7 @@ export function OutputApp() {
       if (message.type === 'voice-test') {
         const t = ttsRef.current;
         const volcReady = t ? (t.provider === 'volcengine'
-          ? Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken)
+          ? Boolean(t.volcengine.apiKey) || (Boolean(t.volcengine.appId) && Boolean(t.volcengine.accessToken))
           : t.provider === 'ark'
             ? Boolean(t.ark.apiKey) && Boolean(t.ark.model)
             : t.provider === 'edge'

@@ -1242,30 +1242,19 @@ const DEFAULT_TTS: TtsConfig = {
   provider: 'system',
   systemVoiceName: null,
   edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
-  volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+  volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
   ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
 };
 
-/** v13.2：火山引擎常用音色（经典 BV700 系列 + 豆包大模型 zh_*_moon_bigtts 系列），下拉直接选，不用手填代码 */
-const VOLC_VOICES: Array<{ value: string; label: string }> = [
-  { value: 'BV700_streaming', label: '灿灿（经典·女声）' },
-  { value: 'BV701_streaming', label: '炀炀（经典·男声）' },
-  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿·豆包大模型（女声）' },
-  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬·豆包大模型（男声）' },
-  { value: 'BV001_streaming', label: '许小宝（经典·男声）' },
-  { value: 'BV008_streaming', label: '聆秋（经典·女声）' },
-  { value: 'BV010_streaming', label: '流苏（经典·女声）' },
-  { value: 'BV011_streaming', label: '桃酥（经典·女声）' },
-  { value: 'BV012_streaming', label: '星野（经典·男声）' },
-  { value: 'BV017_streaming', label: '千岚（经典·男声）' },
-  { value: 'BV018_streaming', label: '鹿鸣（经典·男声）' },
-  { value: 'BV019_streaming', label: '雨荷（经典·女声）' },
-  { value: 'BV020_streaming', label: '白鹭（经典·女声）' },
-  { value: 'BV021_streaming', label: '青槐（经典·女声）' },
-  { value: 'BV022_streaming', label: '竹子（经典·女声）' },
-  { value: 'BV024_streaming', label: '灵犀（经典·女声）' },
-  { value: 'BV032_streaming', label: '通用男声（经典）' },
-  { value: 'BV033_streaming', label: '通用女声（经典）' },
+/** v26.1：火山·豆包语音（新版 API Key）音色下拉 */
+const VOLC_BIG_VOICES: Array<{ value: string; label: string }> = [
+  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿（女声·推荐）' },
+  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬（男声·推荐）' },
+  { value: 'zh_female_yujie_moon_bigtts', label: '雨婕（女声）' },
+  { value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（女声）' },
+  { value: 'zh_female_shuangkuaisisi_moon_bigtts', label: '爽快思思（女声）' },
+  { value: 'zh_male_wennuan_moon_bigtts', label: '温暖（男声）' },
+  { value: 'zh_male_ahu_conversation_wvae_bigtts', label: '阿虎（男声·对话）' },
 ];
 
 /** v21.1：微软免费在线音色（Edge TTS，零密钥）——音质自然，需联网 */
@@ -1343,8 +1332,6 @@ function VoiceSettings({ config, onSave, onError }: {
     }
   }
 
-  const voiceInList = VOLC_VOICES.some((item) => item.value === tts.volcengine.voiceType);
-  const selectedVoiceLabel = VOLC_VOICES.find((item) => item.value === tts.volcengine.voiceType)?.label;
 
   return (
     <section className="voice-settings">
@@ -1354,7 +1341,7 @@ function VoiceSettings({ config, onSave, onError }: {
           <option value="system">系统语音（免费，随时可用）</option>
           <option value="edge">免费在线音色（微软，音质自然，推荐）</option>
           <option value="ark">火山方舟（API Key，需配置）</option>
-          <option value="volcengine">火山·语音合成（AppID/Token，需配置）</option>
+          <option value="volcengine">火山·豆包语音（API Key，推荐）</option>
         </select></label>
         {tts.provider === 'system' ? (
           <label className="wide"><span>系统中文语音</span><select value={tts.systemVoiceName ?? ''} onChange={(e) => setTts({ ...tts, systemVoiceName: e.target.value || null })}>
@@ -1378,22 +1365,18 @@ function VoiceSettings({ config, onSave, onError }: {
           </>
         ) : (
           <>
-            <label className="wide"><span>AppID（火山引擎语音合成）</span><input value={tts.volcengine.appId} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, appId: e.target.value } })} placeholder="申请地址：console.volcengine.com → 语音技术 → 语音合成" /></label>
-            <label className="wide"><span>访问令牌 Access Token</span><input value={tts.volcengine.accessToken} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, accessToken: e.target.value } })} placeholder="只保存在本机，不会上传" /></label>
-            <label className="wide"><span>音色（直接选，不用记代码）</span><select value={voiceInList ? tts.volcengine.voiceType : '__custom__'} onChange={(e) => {
-              const value = e.target.value;
-              if (value === '__custom__') return;
-              setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: value } });
-            }}>
-              {VOLC_VOICES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              <option value="__custom__">{voiceInList ? '…（更多音色需手动输入代码）' : `自定义：${tts.volcengine.voiceType}（${selectedVoiceLabel ?? '未知音色'}）`}</option>
-            </select>
-            {!voiceInList && <input value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })} placeholder="手动输入火山音色代码，如 BV700_streaming" />}
-            <small>音色按「经典」/「豆包大模型」自动走对应接口，选哪个都能直接试听；控制台开通后 AppID 和令牌填一次即可，之后换音色只动下拉。</small></label>
-            <label className="wide"><span>Cluster（一般不用填，按音色自动选择；特殊账号可手动指定）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="留空自动：经典音色→volcano_tts，大模型音色→volcano_mega" /></label>
+            <label className="wide"><span>API Key（火山新版控制台，必填）</span><input value={tts.volcengine.apiKey} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, apiKey: e.target.value } })} placeholder="登录 console.volcengine.com → 火山方舟 → 左侧「API Key 管理」→ 创建并复制（sk- 开头）；只保存在本机" /><small>豆包语音合成大模型鉴权（X-Api-Key）：填这一个 Key 就够了，不需要 AppID/Token/接入点。</small></label>
+            <label className="wide"><span>音色（直接选）</span><select value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })}>
+              {VOLC_BIG_VOICES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select><small>选好后点「试听音色」验证；若提示未开通，请到火山控制台「开通管理」开通「语音合成大模型」服务。</small></label>
+            <details className="wide volc-legacy"><summary>旧版 AppID/Token 配置（一般不用填）</summary>
+              <label className="wide"><span>AppID（旧版语音合成）</span><input value={tts.volcengine.appId} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, appId: e.target.value } })} placeholder="旧版控制台：语音技术 → 语音合成" /></label>
+              <label className="wide"><span>访问令牌 Access Token（旧版）</span><input value={tts.volcengine.accessToken} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, accessToken: e.target.value } })} placeholder="与 AppID 配套" /></label>
+              <label className="wide"><span>Cluster（留空自动）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="经典→volcano_tts，大模型→volcano_mega" /></label>
+            </details>
           </>
         )}
-        {(tts.provider === 'volcengine' || tts.provider === 'ark' || tts.provider === 'edge') && <button className="secondary-action wide" type="button" disabled={testing || (tts.provider === 'volcengine' ? !tts.volcengine.appId || !tts.volcengine.accessToken : tts.provider === 'ark' ? !tts.ark.apiKey || !tts.ark.model : false)} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}
+        {(tts.provider === 'volcengine' || tts.provider === 'ark' || tts.provider === 'edge') && <button className="secondary-action wide" type="button" disabled={testing || (tts.provider === 'volcengine' ? !tts.volcengine.apiKey && !tts.volcengine.accessToken : tts.provider === 'ark' ? !tts.ark.apiKey || !tts.ark.model : false)} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}
         {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
         <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存音色设置</button></div>
       </div>

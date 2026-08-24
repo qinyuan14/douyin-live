@@ -217,10 +217,15 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       return this.arkTtsRequest(a.apiKey.trim(), model, voiceType, parsed.text);
     }
     const v = ttsConfig?.volcengine;
-    if (effectiveProvider !== 'volcengine' || !v?.appId || !v?.accessToken) {
-      throw new Error('尚未开启火山引擎语音：请先在「语音设置」中填写 AppID 与访问令牌，并切换音色来源');
+    if (effectiveProvider !== 'volcengine' || (!v?.apiKey?.trim() && !v?.accessToken?.trim())) {
+      throw new Error('尚未开启火山引擎语音：请在「语音设置」中填写火山 API Key（新版控制台「API Key 管理」复制），并切换音色来源');
     }
-    const voiceType = (parsed.voiceType || v.voiceType || 'BV700_streaming').trim();
+    const voiceType = (parsed.voiceType || v.voiceType || 'zh_female_cancan_moon_bigtts').trim();
+    // v26.1：新版控制台统一 API Key → 豆包语音合成大模型（seed-tts-2.0，X-Api-Key 单头鉴权）
+    // 无需 AppID/Token/Cluster/推理接入点——官方文档 volcengine.com/docs/6269/1598757
+    if (v.apiKey?.trim()) {
+      return this.volcBigTtsRequest(v.apiKey.trim(), voiceType, parsed.text);
+    }
     const appId = v.appId.trim();
     const accessToken = v.accessToken.trim();
     const customCluster = (v.cluster || '').trim();
@@ -249,6 +254,93 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     }
     const triedNote = attempts.length > 1 ? '（已自动尝试 经典语音 与 豆包大模型 两套接口，仍失败）' : '';
     throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(lastError)}（原始返回：${lastError.slice(0, 200)}）${triedNote}`);
+  }
+
+  /**
+   * v26.1：豆包语音合成大模型（新版控制台统一 API Key 鉴权）。
+   * POST https://openspeech.bytedance.com/api/v3/tts/unidirectional（HTTP Chunked 流式）
+   * Headers：X-Api-Key（控制台「API Key 管理」）、X-Api-Resource-Id: seed-tts-2.0（语音合成大模型2.0）、X-Api-Request-Id
+   * Body：{ user:{uid}, req_params:{ text, speaker, audio_params:{format:'mp3',sample_rate:24000} } }
+   * 响应：chunked JSON，data 字段为 base64 音频；结束 code=20000000。
+   * 官方文档：volcengine.com/docs/6269/1598757
+   */
+  private async volcBigTtsRequest(apiKey: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
+    const response = await fetch('https://openspeech.bytedance.com/api/v3/tts/unidirectional', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apiKey,
+        'X-Api-Resource-Id': 'seed-tts-2.0',
+        'X-Api-Request-Id': crypto.randomUUID(),
+      },
+      body: JSON.stringify({
+        user: { uid: 'liveops-local' },
+        req_params: {
+          text,
+          speaker: voiceType,
+          audio_params: { format: 'mp3', sample_rate: 24000 },
+        },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      const raw = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}${raw ? `：${raw.slice(0, 200)}` : ''}`);
+    }
+    // 流式收集文本，按完整 JSON 对象切分（chunk 间可能无换行，用平衡括号解析）
+    let allText = '';
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('无法读取语音合成响应');
+    const decoder = new TextDecoder('utf-8');
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      allText += decoder.decode(value, { stream: true });
+    }
+    const audioParts: string[] = [];
+    let rest = allText;
+    while (rest.trim().length > 0) {
+      const start = rest.search(/\{/);
+      if (start === -1) break;
+      rest = rest.slice(start);
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      let end = -1;
+      for (let i = 0; i < rest.length; i += 1) {
+        const ch = rest[i]!;
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (ch === '\\') escaped = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') inString = true;
+        else if (ch === '{') depth += 1;
+        else if (ch === '}') {
+          depth -= 1;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end === -1) break;
+      const line = rest.slice(0, end + 1);
+      rest = rest.slice(end + 1);
+      try {
+        const parsed = JSON.parse(line) as { code?: number; message?: string; data?: string | null };
+        if (parsed.code === 0 && typeof parsed.data === 'string' && parsed.data.length > 0) {
+          audioParts.push(parsed.data);
+        } else if (parsed.code !== 0 && parsed.code !== 20000000) {
+          throw new Error(`豆包语音合成失败（code=${parsed.code ?? '?'}）：${parsed.message || '未知错误'}。若提示未开通/未授权，请到火山控制台「开通管理」开通「语音合成大模型」服务`);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('豆包语音合成失败')) throw error;
+        // 非完整 JSON 片段，忽略继续
+      }
+    }
+    if (audioParts.length === 0) {
+      throw new Error('豆包语音合成没有返回音频：请核对 API Key 是否正确、音色是否存在；若提示未开通，请到火山控制台「开通管理」开通「语音合成大模型」服务');
+    }
+    return { audioBase64: audioParts.join(''), format: 'mp3' };
   }
 
   /** 单次火山 TTS 请求：按 cluster 自动选 v1 经典或 v3 豆包大模型接口 */

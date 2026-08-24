@@ -171,6 +171,9 @@ export const TtsConfigSchema = z.object({
     voiceType: z.string(),
   }),
   volcengine: z.object({
+    // v26.1：新版控制台统一 API Key（X-Api-Key 单头鉴权，走豆包语音合成大模型 seed-tts-2.0）
+    apiKey: z.string(),
+    // 旧版 AppID/Token 保留兼容（无 apiKey 时回退）
     appId: z.string(),
     accessToken: z.string(),
     cluster: z.string(),
@@ -199,7 +202,7 @@ export const StoreConfigSchema = z.object({
     provider: 'system',
     systemVoiceName: null,
     edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
-    volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+    volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
     ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   }),
   // ===== 小白商用重构 v2（阶段1）=====

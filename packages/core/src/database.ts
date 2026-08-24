@@ -65,7 +65,7 @@ const DEFAULT_CONFIG: StoreConfig = {
     provider: 'system',
     systemVoiceName: null,
     edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
-    volcengine: { appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'BV700_streaming' },
+    volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
     ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   },
   // 小白商用重构 v2（阶段1）：完整初始化标记与监护落盘
@@ -284,6 +284,7 @@ export class LiveDatabase {
           const v = tts.volcengine as Record<string, unknown>;
           next.volcengine = {
             ...next.volcengine,
+            ...(typeof v.apiKey === 'string' ? { apiKey: v.apiKey } : {}),
             ...(typeof v.appId === 'string' ? { appId: v.appId } : {}),
             ...(typeof v.accessToken === 'string' ? { accessToken: v.accessToken } : {}),
             ...(typeof v.cluster === 'string' ? { cluster: v.cluster } : {}),
