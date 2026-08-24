@@ -499,6 +499,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .voice-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .voice-form label small { font-weight: 400; color: var(--muted); line-height: 1.5; }
 .voice-form input, .voice-form select { min-height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; background: white; font-size: 13px; color: var(--ink); }
+.voice-form textarea.script-editor { width: 100%; min-height: 150px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: white; font-size: 13px; line-height: 1.7; color: var(--ink); font-family: inherit; resize: vertical; }
 .voice-form .wide { grid-column: 1 / -1; }
 .voice-form .secondary-action.wide, .voice-form .form-actions.wide { grid-column: 1 / -1; }
 .voice-test-result { grid-column: 1 / -1; margin: 0; padding: 8px 12px; background: var(--green-soft); border-radius: 9px; color: #205d44; font-size: 12px; font-weight: 700; }

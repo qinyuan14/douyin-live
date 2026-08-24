@@ -194,6 +194,8 @@ export const StoreConfigSchema = z.object({
     systemVoiceName: null,
     volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_uranus_bigtts' },
   }),
+  // v31.1：话术稿（预生成音频用）——老板维护一组直播话术，一键预生成音频存本地，直播命中本地音频不消耗 API
+  pregenScripts: z.array(z.string()).default([]),
   // ===== 小白商用重构 v2（阶段1）=====
   // 完整初始化标记：4 步向导全部完成后置 true；老用户按兼容规则推导，不重走向导
   setupCompleted: z.boolean().default(false),

@@ -27,6 +27,7 @@ import {
   ReceiptText,
   RefreshCw,
   RotateCcw,
+  Save,
   ShieldAlert,
   ShieldCheck,
   ShoppingBag,
@@ -34,6 +35,8 @@ import {
   UserCheck,
   Volume2,
   WalletCards,
+  Wand2,
+  FileAudio,
 } from 'lucide-react';
 import type {
   BackupIntegrity,
@@ -514,6 +517,7 @@ export function ControlApp() {
               onVoiceConfirm={() => void confirmVoiceHeard()}
               onOfferSaved={async () => { await refresh(true); setNotice({ tone: 'success', message: '商品快照已保存；开播准备没完成前仍不能正式开播。' }); }}
               onSaveTts={async (tts) => { await api.saveConfig({ tts }); await refresh(true); }}
+              onSaveScripts={async (scripts) => { await api.saveConfig({ pregenScripts: scripts }); await refresh(true); }}
               onError={(message) => setNotice({ tone: 'error', message })}
               onTransition={(next, reason, confirmed) => void transition(next, reason, confirmed)}
             />
@@ -1097,7 +1101,7 @@ const GATE_TIPS: Record<string, string> = {
   authorization: '在抖音直播伴侣人工开播后，点下方「我已在直播伴侣人工开播」。',
 };
 
-function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onSaveTts, onError, onTransition }: {
+function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVoiceConfirm, voiceTestPending, voiceTestGenerated, onOfferSaved, onSaveTts, onSaveScripts, onError, onTransition }: {
   data: BootstrapData;
   activeOffer: OfferSnapshot | null;
   onRefresh: () => void;
@@ -1108,6 +1112,7 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
   voiceTestGenerated: boolean;
   onOfferSaved: () => Promise<void>;
   onSaveTts: (tts: TtsConfig) => Promise<void>;
+  onSaveScripts: (scripts: string[]) => Promise<void>;
   onError: (message: string) => void;
   onTransition: (state: LiveSession['state'], reason: string | null, confirmed?: boolean) => void;
 }) {
@@ -1208,6 +1213,8 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
       </section>
 
       <VoiceSettings config={data.config} onSave={onSaveTts} onError={onError} />
+
+      <PregenScripts scripts={data.config.pregenScripts ?? []} onSave={onSaveScripts} onError={onError} />
 
       <section className="hardware-confirm">
         <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>直播监护确认（数字人模式）</h2><p>数字人直播不连接真实摄像头；只需确认画面合规、声音线路正确、真人可随时接管。这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
@@ -1430,6 +1437,81 @@ function VoiceSettings({ config, onSave, onError }: {
         <button className="secondary-action wide" type="button" disabled={testing || (!tts.volcengine.apiKey && !tts.volcengine.accessToken)} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>
         {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
         <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存音色设置</button></div>
+      </div>
+    </section>
+  );
+}
+
+/** v31.1：话术稿与本地音频——老板维护直播话术，一键预生成音频存本地；直播时命中本地音频播放，不消耗 API */
+function PregenScripts({ scripts, onSave, onError }: {
+  scripts: string[];
+  onSave: (scripts: string[]) => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [text, setText] = useState(scripts.join('\n'));
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [result, setResult] = useState<{ ok: number; cached: number; failed: number } | null>(null);
+
+  const lines = () => text.split('\n').map((s) => s.trim()).filter(Boolean);
+
+  async function saveScripts() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      await onSave(lines());
+      setNotice({ tone: 'success', text: `✓ 话术稿已保存（${lines().length} 条）。` });
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '话术稿保存失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function generateAll() {
+    const list = lines();
+    if (list.length === 0) {
+      setNotice({ tone: 'error', text: '请先填写至少一条话术。' });
+      return;
+    }
+    setGenerating(true);
+    setNotice(null);
+    setResult(null);
+    try {
+      await onSave(list);
+      let ok = 0;
+      let cached = 0;
+      let failed = 0;
+      for (const line of list) {
+        try {
+          const res = await api.ttsPregen({ text: line });
+          if (res.cached) cached += 1; else ok += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setResult({ ok, cached, failed });
+      setNotice({ tone: 'success', text: `✓ 生成完成：新生成 ${ok} 条，命中本地缓存 ${cached} 条${failed > 0 ? `，失败 ${failed} 条（可单独重试）` : ''}。` });
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '话术音频生成失败');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <section className="voice-settings">
+      <div className="panel-heading"><FileAudio aria-hidden="true" /><div><h2>话术稿与本地音频（省钱模式）</h2><p>把要播的话术提前写成稿子、一键生成音频存到本机；直播播到相同内容时<b>直接播本地音频，不再消耗 API 费用</b>。每行一条话术。</p></div></div>
+      <div className="voice-form">
+        <label className="wide"><span>直播话术稿（每行一条，会原样播报）</span><textarea className="script-editor" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'欢迎各位来到直播间，今天我们给大家带来了…\n这个商品日常价 99，今天直播间只要 69…\n喜欢的家人点点关注，有问题随时问…'} /></label>
+        <div className="form-actions wide">
+          <button className="secondary-action" type="button" disabled={saving} onClick={() => void saveScripts()}>{saving ? <LoaderCircle className="spin" /> : <Save />}保存话术稿</button>
+          <button className="primary-action" type="button" disabled={generating} onClick={() => void generateAll()}>{generating ? <LoaderCircle className="spin" /> : <Wand2 />}生成全部音频（本地）</button>
+        </div>
+        {result && <p className="voice-test-result success">生成结果：新生成 {result.ok} 条 · 已有缓存 {result.cached} 条 · 失败 {result.failed} 条</p>}
+        {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
+        <small>提示：直播中临时播报未在稿子里的内容仍会实时合成（自动缓存，下次同内容零费用）。</small>
       </div>
     </section>
   );

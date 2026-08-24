@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import {
@@ -28,6 +28,7 @@ import {
   readActivation,
   redactPersonalData,
   restoreLocalBackup,
+  projectRoot,
 } from '@liveops/live-core';
 import type { BackupIntegrity, BackupSummary, RestoreResult } from '@liveops/live-contracts';
 import { buildRunSheet } from './run-sheet.js';
@@ -179,8 +180,14 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * v25.1：超时类错误统一翻译为大白话（signal timed out 等不再裸抛）。
    */
   async tts(input: unknown): Promise<{ audioBase64: string; format: string }> {
+    // v31.1：实时合成成功后自动写本地缓存（相同文本下次直接本地播放，不消耗 API）
+    const cacheText = (input as { text?: string } | null)?.text?.trim() ?? '';
     try {
-      return await this.ttsInner(input);
+      const result = await this.ttsInner(input);
+      if (cacheText && cacheText.length > 0 && cacheText.length <= 200) {
+        void this.ttsCacheWrite(cacheText, result.audioBase64).catch(() => { /* 缓存失败不影响播放 */ });
+      }
+      return result;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       if (/signal timed out|timeout|timed out|abort/i.test(msg)) {
@@ -241,6 +248,48 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     }
     const triedNote = attempts.length > 1 ? '（已自动尝试 经典语音 与 豆包大模型 两套接口，仍失败）' : '';
     throw new Error(`火山引擎语音合成失败：${this.describeVolcTtsError(lastError)}（原始返回：${lastError.slice(0, 200)}）${triedNote}`);
+  }
+
+  /**
+   * v31.1：话术预生成音频（存本地，直播时命中本地音频不消耗 API token）。
+   * 按文本 SHA-256 作为缓存 key 存 .data/media/tts/{key}.mp3。
+   */
+  async ttsPregen(input: { text: string }): Promise<{ cached: boolean; key: string; bytes: number }> {
+    const { text } = z.object({ text: z.string().min(1).max(300) }).parse(input);
+    const trimmed = text.trim();
+    const key = this.ttsCacheKey(trimmed);
+    const file = join(this.ttsCacheDir(), key);
+    if (existsSync(file)) {
+      return { cached: true, key, bytes: statSync(file).size };
+    }
+    const result = await this.ttsInner({ text: trimmed });
+    await mkdir(this.ttsCacheDir(), { recursive: true });
+    await writeFile(file, Buffer.from(result.audioBase64, 'base64'));
+    return { cached: false, key, bytes: statSync(file).size };
+  }
+
+  /** v31.1：查本地缓存音频（直播播报命中则零 API 播放） */
+  async ttsPregenCheck(input: { text: string }): Promise<{ cached: boolean; audioBase64?: string; format?: string }> {
+    const { text } = z.object({ text: z.string().min(1).max(300) }).parse(input);
+    const file = join(this.ttsCacheDir(), this.ttsCacheKey(text.trim()));
+    if (!existsSync(file)) return { cached: false };
+    const buf = await readFile(file);
+    return { cached: true, audioBase64: buf.toString('base64'), format: 'mp3' };
+  }
+
+  /** 本地 TTS 缓存目录：{dataRoot}/media/tts/ */
+  private ttsCacheDir(): string {
+    return join(projectRoot(), 'media', 'tts');
+  }
+
+  private ttsCacheKey(text: string): string {
+    return `${createHash('sha256').update(text).digest('hex').slice(0, 24)}.mp3`;
+  }
+
+  private async ttsCacheWrite(text: string, audioBase64: string): Promise<void> {
+    const dir = this.ttsCacheDir();
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, this.ttsCacheKey(text)), Buffer.from(audioBase64, 'base64'));
   }
 
   /**

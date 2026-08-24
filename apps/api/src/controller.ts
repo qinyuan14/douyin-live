@@ -46,6 +46,26 @@ export class AppController {
     }
   }
 
+  // v31.1：话术预生成音频（存本地，直播命中本地音频不消耗 API）
+  @Post('/tts/pregen')
+  async ttsPregen(@Body() body: unknown) {
+    try {
+      return await this.live.ttsPregen(body as { text: string });
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
+  // v31.1：查本地缓存音频（直播播报命中则零 API 播放）
+  @Post('/tts/pregen-check')
+  async ttsPregenCheck(@Body() body: unknown) {
+    try {
+      return await this.live.ttsPregenCheck(body as { text: string });
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
   @Get('/offers')
   listOffers() {
     return this.live.listOffers();

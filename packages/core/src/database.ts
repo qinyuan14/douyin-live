@@ -60,6 +60,8 @@ const DEFAULT_CONFIG: StoreConfig = {
   serviceAreasConfirmed: false,
   productCategories: [],
   onboardingCompleted: false,
+  // v31.1：话术稿（预生成音频）
+  pregenScripts: [],
   // v13.1：播报音色（v30 起只保留火山·豆包语音；system 为无 Key 兜底）
   tts: {
     provider: 'system',
@@ -295,6 +297,10 @@ export class LiveDatabase {
           };
         }
         this.state.config.tts = next;
+      }
+      // v31.1：话术稿列表（预生成音频用）
+      if (Array.isArray(patch.pregenScripts)) {
+        this.state.config.pregenScripts = patch.pregenScripts.map((item) => (typeof item === 'string' ? item : '')).filter(Boolean).slice(0, 200);
       }
     }
     this.persist();

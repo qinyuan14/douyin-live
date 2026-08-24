@@ -127,6 +127,9 @@ export const api = {
   saveConfig: (input: Partial<StoreConfig>) => request<StoreConfig>('/config', { method: 'PUT', body: JSON.stringify(input) }),
   // v13.1：语音合成（text → mp3 base64）；provider/apiKey 可选（试听时跟随界面选择）
   tts: (input: { text: string; voiceType?: string; provider?: 'system' | 'volcengine'; apiKey?: string }) => request<{ audioBase64: string; format: string }>('/tts', { method: 'POST', body: JSON.stringify(input) }),
+  // v31.1：话术预生成音频（存本地）与本地缓存查询（直播命中本地音频零 API）
+  ttsPregen: (input: { text: string }) => request<{ cached: boolean; key: string; bytes: number }>('/tts/pregen', { method: 'POST', body: JSON.stringify(input) }),
+  ttsPregenCheck: (input: { text: string }) => request<{ cached: boolean; audioBase64?: string; format?: string }>('/tts/pregen-check', { method: 'POST', body: JSON.stringify(input) }),
   saveOffer: (input: OfferSnapshot) => request<OfferSnapshot>('/offers', { method: 'POST', body: JSON.stringify(input) }),
   saveKnowledge: (input: KnowledgeItem) => request<KnowledgeItem>('/knowledge', { method: 'POST', body: JSON.stringify(input) }),
   evaluate: (input: { knowledgeItemId: string | null; question: string; proposedAnswer: string }) =>

@@ -140,8 +140,8 @@ export function OutputApp() {
         return;
       }
       if (volcReady) {
-        // v13.1：火山引擎（抖音同款音色）——内置 API 代理合成播放（blob URL，兼容 mp3/ogg/wav）
-        void api.tts({ text: chunk }).then(({ audioBase64, format }) => {
+        // v31.1：先查本地预生成音频（命中则零 API 播放）；未命中才实时合成（合成后自动缓存，重复话术第二次起零 API）
+        const playAudio = (audioBase64: string, format?: string) => {
           if (sequence !== speechSequenceRef.current) return;
           const { url, bytes } = blobAudioUrl(audioBase64, format);
           const audio = new Audio(url);
@@ -161,13 +161,22 @@ export function OutputApp() {
           setSpeaking(true);
           setCaption(chunk);
           void audio.play().catch(() => stopSpeech('云端语音播放失败，请员工使用真人声音接管'));
-        }).catch(() => {
-          stopSpeech('云端语音合成失败，请员工使用真人声音接管');
-          void api.updateHardware({ voiceReady: false }).catch(() => {
-            connectedRef.current = false;
-            setServiceConnected(false);
+        };
+        void api.ttsPregenCheck({ text: chunk })
+          .then((res) => {
+            if (res.cached && res.audioBase64) {
+              playAudio(res.audioBase64, res.format);
+              return;
+            }
+            return api.tts({ text: chunk }).then(({ audioBase64, format }) => playAudio(audioBase64, format));
+          })
+          .catch(() => {
+            stopSpeech('云端语音合成失败，请员工使用真人声音接管');
+            void api.updateHardware({ voiceReady: false }).catch(() => {
+              connectedRef.current = false;
+              setServiceConnected(false);
+            });
           });
-        });
         return;
       }
       // 系统语音
