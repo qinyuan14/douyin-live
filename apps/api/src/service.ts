@@ -255,6 +255,11 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     if (voiceType.startsWith('ICL_')) {
       throw new Error('这个音色是「对话式音色」（ICL 开头），不支持普通播报合成。请换用普通音色：灿灿、云扬、Vivi 2.0、小何 2.0 等。');
     }
+    // moon_bigtts（灿灿/云扬等 1.0 音色）属于旧版「语音合成 SaaS」体系，新版 API Key 无法调用；
+    // 老板实测确认 55000000 两个版本均不匹配，直接给友好引导，避免浪费时间重试
+    if (!voiceType.includes('uranus') && voiceType.includes('moon_bigtts')) {
+      throw new Error('「' + voiceType + '」属于火山旧版语音合成体系的音色，新版 API Key 不支持调用。\n请改用豆包语音大模型音色：\n· 知性灿灿 2.0（同款灿灿，推荐）\n· Vivi 2.0 / 小何 2.0 / 云舟 2.0 / 爽快思思 2.0');
+    }
     // 音色与版本不匹配（55000000）时自动换另一个版本重试，不再靠猜
     const candidates = voiceType.includes('uranus') ? ['seed-tts-2.0', 'seed-tts-1.0'] : ['seed-tts-1.0', 'seed-tts-2.0'];
     let lastError = '';
