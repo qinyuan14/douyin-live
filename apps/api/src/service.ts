@@ -292,6 +292,28 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     await writeFile(join(dir, this.ttsCacheKey(text)), Buffer.from(audioBase64, 'base64'));
   }
 
+  /** v32：录屏视频素材上传（存 .data/media/videos/，直播伴侣窗口捕获本系统输出窗口即可播出） */
+  async uploadVideo(file: { originalname?: string; buffer?: Buffer; mimetype?: string }): Promise<{ fileName: string; size: number }> {
+    if (!file?.buffer || file.buffer.length === 0) throw new Error('未收到视频文件');
+    if (file.buffer.length > 300 * 1024 * 1024) throw new Error('视频过大（限 300MB 以内）');
+    const ext = extname(file.originalname || '').toLowerCase() || '.mp4';
+    if (!['.mp4', '.webm', '.mov'].includes(ext)) throw new Error('仅支持 mp4 / webm / mov 视频');
+    const dir = join(projectRoot(), 'media', 'videos');
+    await mkdir(dir, { recursive: true });
+    const fileName = `${randomUUID().slice(0, 8)}${ext}`;
+    await writeFile(join(dir, fileName), file.buffer);
+    return { fileName, size: file.buffer.length };
+  }
+
+  /** v32：读取录屏视频文件（basename 防目录穿越） */
+  async videoFile(fileName: string): Promise<{ buffer: Buffer; mime: string }> {
+    const safe = basename(fileName);
+    const file = join(projectRoot(), 'media', 'videos', safe);
+    if (!existsSync(file)) throw new Error('视频素材不存在，请重新上传');
+    const mime = safe.toLowerCase().endsWith('.webm') ? 'video/webm' : safe.toLowerCase().endsWith('.mov') ? 'video/quicktime' : 'video/mp4';
+    return { buffer: await readFile(file), mime };
+  }
+
   /**
    * v26.1：豆包语音合成大模型（新版控制台统一 API Key 鉴权）。
    * POST https://openspeech.bytedance.com/api/v3/tts/unidirectional（HTTP Chunked 流式）

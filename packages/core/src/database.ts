@@ -62,6 +62,8 @@ const DEFAULT_CONFIG: StoreConfig = {
   onboardingCompleted: false,
   // v31.1：话术稿（预生成音频）
   pregenScripts: [],
+  // v32：直播画面形态（camera / video）
+  screenPlay: { provider: 'camera' as const, videoFileName: '', videoPersona: '' },
   // v13.1：播报音色（v30 起只保留火山·豆包语音；system 为无 Key 兜底）
   tts: {
     provider: 'system',
@@ -126,6 +128,7 @@ export class LiveDatabase {
       ...DEFAULT_CONFIG,
       ...rawConfig,
       tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine } },
+      screenPlay: { ...DEFAULT_CONFIG.screenPlay, ...rawConfig.screenPlay },
       setupSnapshot: { ...DEFAULT_CONFIG.setupSnapshot, ...rawConfig.setupSnapshot, confirmed: { ...DEFAULT_CONFIG.setupSnapshot.confirmed, ...rawConfig.setupSnapshot?.confirmed } },
     };
     // v30：移除微软/方舟后的兼容迁移——旧 provider（edge/ark）归一化为 volcengine（老板只保留火山音色）
@@ -301,6 +304,15 @@ export class LiveDatabase {
       // v31.1：话术稿列表（预生成音频用）
       if (Array.isArray(patch.pregenScripts)) {
         this.state.config.pregenScripts = patch.pregenScripts.map((item) => (typeof item === 'string' ? item : '')).filter(Boolean).slice(0, 200);
+      }
+      // v32：直播画面形态（摄像头 / 录屏视频）
+      if (patch.screenPlay && typeof patch.screenPlay === 'object') {
+        const sp = patch.screenPlay as Record<string, unknown>;
+        const next = { ...DEFAULT_CONFIG.screenPlay, ...this.state.config.screenPlay, ...sp };
+        if (sp.provider === 'camera' || sp.provider === 'video') next.provider = sp.provider;
+        if (typeof sp.videoFileName === 'string') next.videoFileName = sp.videoFileName;
+        if (typeof sp.videoPersona === 'string') next.videoPersona = sp.videoPersona;
+        this.state.config.screenPlay = next;
       }
     }
     this.persist();

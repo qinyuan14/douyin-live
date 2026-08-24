@@ -52,6 +52,9 @@ export function OutputApp() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [cameraMessage, setCameraMessage] = useState('先扫描设备，再明确选择专用俯拍摄像头');
+  // v32：直播画面形态（摄像头 / 录屏视频）
+  const [screenMode, setScreenMode] = useState<'camera' | 'video'>('camera');
+  const [videoFileName, setVideoFileName] = useState('');
   const [serviceConnected, setServiceConnected] = useState(false);
   const [serviceAreas, setServiceAreas] = useState<string[]>([]);
   const [storeName, setStoreName] = useState('');
@@ -89,6 +92,9 @@ export function OutputApp() {
       setStoreName(data.config.storeName ?? '');
       setTagline(data.config.tagline ?? '');
       ttsRef.current = data.config.tts ?? null;
+      // v32：直播画面形态（摄像头 / 录屏视频）
+      setScreenMode(data.config.screenPlay?.provider ?? 'camera');
+      setVideoFileName(data.config.screenPlay?.videoFileName ?? '');
       setActivated(data.activation.activated);
     } catch {
       connectedRef.current = false;
@@ -266,6 +272,19 @@ export function OutputApp() {
     return () => channel.close();
   }, [applyState, speak, stopSpeech]);
 
+  // v32：录屏视频模式——直接循环播放本地视频素材，不请求摄像头
+  useEffect(() => {
+    if (screenMode === 'video' && videoFileName && videoRef.current) {
+      videoRef.current.src = `http://127.0.0.1:3188/media/videos/${videoFileName}`;
+      videoRef.current.loop = true;
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+      void videoRef.current.play().catch(() => {
+        setCameraMessage('视频素材加载中，请确认已上传并选择录屏视频');
+      });
+    }
+  }, [screenMode, videoFileName]);
+
   const revokeCamera = useCallback(async (reason: string) => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
@@ -375,8 +394,15 @@ export function OutputApp() {
           <span>请在控制台输入授权码后，画面和播报功能才能使用。</span>
         </div>
       )}
-      <video ref={videoRef} className="broadcast-video" muted playsInline />
-      {cameraStatus !== 'ready' && (
+      <video ref={videoRef} className="broadcast-video" muted playsInline loop />
+      {screenMode === 'video' && (
+        <section className="camera-start" aria-label="录屏画面">
+          <Camera aria-hidden="true" />
+          <strong>{videoFileName ? '正在播放录屏视频素材' : '未选择录屏视频'}</strong>
+          <span>{videoFileName ? `素材：${videoFileName}（循环播放）` : '请回到控制台「直播画面」选择录屏视频素材'}</span>
+        </section>
+      )}
+      {cameraStatus !== 'ready' && screenMode !== 'video' && (
         <section className="camera-start" aria-label="摄像头设置">
           <Camera aria-hidden="true" />
           <strong>{cameraStatus === 'scanning' ? '正在读取摄像头' : cameraStatus === 'preview' ? '检查无人脸取景' : '选择俯拍摄像头'}</strong>

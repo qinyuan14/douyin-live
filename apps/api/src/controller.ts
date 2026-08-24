@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpException, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, Param, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { LiveSessionStateSchema, ResponseEvaluationRequestSchema } from '@liveops/live-contracts';
 import { z } from 'zod';
 import { LiveService } from './service.js';
@@ -63,6 +64,30 @@ export class AppController {
       return await this.live.ttsPregenCheck(body as { text: string });
     } catch (error) {
       badRequest(error);
+    }
+  }
+
+  // v32：录屏视频素材上传（multipart，字段名 file）
+  @Post('/media/videos')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadVideo(@UploadedFile() file: unknown) {
+    try {
+      return await this.live.uploadVideo(file as { originalname?: string; buffer?: Buffer; mimetype?: string });
+    } catch (error) {
+      badRequest(error);
+    }
+  }
+
+  // v32：读取录屏视频（输出窗口播放源；直播伴侣用「窗口捕获」抓取）
+  @Get('/media/videos/:file')
+  async videoFile(@Param('file') fileName: string, @Res() res: unknown) {
+    try {
+      const { buffer, mime } = await this.live.videoFile(fileName);
+      const response = res as { set: (h: Record<string, string>) => void; send: (b: Buffer) => void; status: (c: number) => { send: (m: string) => void } };
+      response.set({ 'Content-Type': mime, 'Cache-Control': 'no-store' });
+      response.send(buffer);
+    } catch {
+      (res as { status: (c: number) => { send: (m: string) => void } }).status(404).send('video not found');
     }
   }
 

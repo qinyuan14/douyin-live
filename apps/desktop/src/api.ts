@@ -125,6 +125,24 @@ export const api = {
   getActivation: () => request<ActivationState>('/activation'),
   activate: (code: string) => request<ActivationState>('/activation', { method: 'POST', body: JSON.stringify({ code }) }),
   saveConfig: (input: Partial<StoreConfig>) => request<StoreConfig>('/config', { method: 'PUT', body: JSON.stringify(input) }),
+  // v32：录屏视频素材上传（multipart，不设 Content-Type 由浏览器生成 boundary）
+  uploadVideo: async (file: File): Promise<{ fileName: string; size: number }> => {
+    const token = window.liveDesktop?.getLocalToken() ?? '';
+    if (!token) throw new Error('本机桌面身份不可用');
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`${API_BASE}/media/videos`, {
+      method: 'POST',
+      headers: { 'X-Live-Local-Token': token },
+      body: form,
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({ message: '视频上传失败' })) as { message?: string };
+      throw new Error(payload.message ?? '视频上传失败');
+    }
+    return response.json() as Promise<{ fileName: string; size: number }>;
+  },
   // v13.1：语音合成（text → mp3 base64）；provider/apiKey 可选（试听时跟随界面选择）
   tts: (input: { text: string; voiceType?: string; provider?: 'system' | 'volcengine'; apiKey?: string }) => request<{ audioBase64: string; format: string }>('/tts', { method: 'POST', body: JSON.stringify(input) }),
   // v31.1：话术预生成音频（存本地）与本地缓存查询（直播命中本地音频零 API）

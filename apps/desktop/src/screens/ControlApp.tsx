@@ -37,6 +37,7 @@ import {
   WalletCards,
   Wand2,
   FileAudio,
+  MonitorPlay,
 } from 'lucide-react';
 import type {
   BackupIntegrity,
@@ -1216,6 +1217,8 @@ function Preflight({ data, activeOffer, onRefresh, onHardware, onVoiceTest, onVo
 
       <PregenScripts scripts={data.config.pregenScripts ?? []} runSheet={data.runSheet} onSave={onSaveScripts} onError={onError} />
 
+      <ScreenPlaySettings screenPlay={data.config.screenPlay} onRefresh={onRefresh} onError={onError} />
+
       <section className="hardware-confirm">
         <div className="panel-heading"><Mic2 aria-hidden="true" /><div><h2>直播监护确认（数字人模式）</h2><p>数字人直播不连接真实摄像头；只需确认画面合规、声音线路正确、真人可随时接管。这些确认只代表本机预览，不代表抖音开播授权。</p></div><button type="button" className="secondary-action" onClick={() => void window.liveDesktop?.focusOutputWindow()}><Camera aria-hidden="true" />打开直播输出窗口</button></div>
         <div className="hardware-buttons">
@@ -1527,6 +1530,74 @@ function PregenScripts({ scripts, runSheet, onSave, onError }: {
         {result && <p className="voice-test-result success">生成结果：新生成 {result.ok} 条 · 已有缓存 {result.cached} 条 · 失败 {result.failed} 条</p>}
         {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
         <small>提示：直播中临时播报未在稿子里的内容仍会实时合成（自动缓存，下次同内容零费用）。</small>
+      </div>
+    </section>
+  );
+}
+
+/** v32：直播画面形态（摄像头 / 录屏视频素材免摄像头） */
+function ScreenPlaySettings({ screenPlay, onRefresh, onError }: {
+  screenPlay: StoreConfig['screenPlay'];
+  onRefresh: () => void;
+  onError: (message: string) => void;
+}) {
+  const [provider, setProvider] = useState<'camera' | 'video'>(screenPlay?.provider ?? 'camera');
+  const [videoFileName, setVideoFileName] = useState(screenPlay?.videoFileName ?? '');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+
+  async function pickVideo(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setNotice(null);
+    try {
+      const res = await api.uploadVideo(file);
+      setVideoFileName(res.fileName);
+      setNotice({ tone: 'success', text: `✓ 视频已上传（${(res.size / 1024 / 1024).toFixed(1)} MB），点「保存画面设置」后直播输出窗口即循环播放。` });
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '视频上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function save() {
+    setSaving(true);
+    setNotice(null);
+    try {
+      await api.saveConfig({ screenPlay: { provider, videoFileName, videoPersona: '' } });
+      await onRefresh();
+      setNotice({ tone: 'success', text: provider === 'video'
+        ? '✓ 已切换为录屏视频模式（不需要摄像头）。直播伴侣用「窗口捕获」选本系统的直播输出窗口即可播出画面。'
+        : '✓ 已切换为摄像头模式。' });
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '画面设置保存失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="voice-settings">
+      <div className="panel-heading"><MonitorPlay aria-hidden="true" /><div><h2>直播画面</h2><p>摄像头模式：俯拍真实作业台；录屏视频模式：循环播放视频素材，<b>不需要摄像头、不需要摄像头授权</b>。</p></div></div>
+      <div className="voice-form">
+        <label className="wide"><span>画面来源</span><select value={provider} onChange={(e) => setProvider(e.target.value as 'camera' | 'video')}>
+          <option value="video">录屏视频素材（免摄像头，推荐）</option>
+          <option value="camera">摄像头（俯拍真实作业台）</option>
+        </select></label>
+        {provider === 'video' ? (
+          <>
+            <label className="wide"><span>录屏视频素材（mp4/webm/mov，≤300MB）</span>
+              <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={(e) => void pickVideo(e.target.files?.[0])} />
+              {videoFileName && <small>已选素材：{videoFileName}（保存后直播输出窗口自动循环播放；直播伴侣「添加素材→窗口」选本系统输出窗口即可播出）</small>}
+            </label>
+          </>
+        ) : (
+          <small>摄像头模式：直播输出窗口会要求选择俯拍摄像头；请确保画面只有作业台、无人脸。</small>
+        )}
+        <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving || uploading} onClick={() => void save()}>{saving || uploading ? <LoaderCircle className="spin" /> : <Check />}保存画面设置</button></div>
+        {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
       </div>
     </section>
   );
