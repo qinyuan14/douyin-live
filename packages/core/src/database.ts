@@ -60,13 +60,11 @@ const DEFAULT_CONFIG: StoreConfig = {
   serviceAreasConfirmed: false,
   productCategories: [],
   onboardingCompleted: false,
-  // v13.1：播报音色（默认系统语音；微软免费在线零密钥；火山引擎/火山方舟需密钥）
+  // v13.1：播报音色（v30 起只保留火山·豆包语音；system 为无 Key 兜底）
   tts: {
     provider: 'system',
     systemVoiceName: null,
-    edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
     volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
-    ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   },
   // 小白商用重构 v2（阶段1）：完整初始化标记与监护落盘
   setupCompleted: false,
@@ -125,9 +123,14 @@ export class LiveDatabase {
       // 与 DEFAULT_CONFIG 合并：老数据文件可能缺任务E新增的商家配置字段（tts/setupSnapshot 深合并）
       ...DEFAULT_CONFIG,
       ...rawConfig,
-      tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, edge: { ...DEFAULT_CONFIG.tts.edge, ...rawConfig.tts?.edge }, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine }, ark: { ...DEFAULT_CONFIG.tts.ark, ...rawConfig.tts?.ark } },
+      tts: { ...DEFAULT_CONFIG.tts, ...rawConfig.tts, volcengine: { ...DEFAULT_CONFIG.tts.volcengine, ...rawConfig.tts?.volcengine } },
       setupSnapshot: { ...DEFAULT_CONFIG.setupSnapshot, ...rawConfig.setupSnapshot, confirmed: { ...DEFAULT_CONFIG.setupSnapshot.confirmed, ...rawConfig.setupSnapshot?.confirmed } },
     };
+    // v30：移除微软/方舟后的兼容迁移——旧 provider（edge/ark）归一化为 volcengine（老板只保留火山音色）
+    const rawTtsProvider = rawConfig.tts?.provider as string | undefined;
+    if (rawTtsProvider === 'edge' || rawTtsProvider === 'ark') {
+      (mergedConfig.tts as { provider: string }).provider = 'volcengine';
+    }
     // 老用户兼容：已走过旧向导且有商品 → 视为已完成初始化，不重走向导
     if (!mergedConfig.setupCompleted && mergedConfig.onboardingCompleted === true && offers.length > 0) {
       mergedConfig.setupCompleted = true;
@@ -274,11 +277,11 @@ export class LiveDatabase {
       if (typeof patch.hardwareConfirmedAt === 'string' || patch.hardwareConfirmedAt === null) {
         this.state.config.hardwareConfirmedAt = patch.hardwareConfirmedAt;
       }
-      // v13.1：播报音色设置（系统语音 / 火山引擎 / 火山方舟）
+      // v13.1：播报音色设置（v30 起只保留火山·豆包语音 + 系统语音兜底）
       if (patch.tts && typeof patch.tts === 'object') {
         const tts = patch.tts as Record<string, unknown>;
         const next = { ...DEFAULT_CONFIG.tts, ...this.state.config.tts, ...tts };
-        if (tts.provider === 'edge' || tts.provider === 'system' || tts.provider === 'volcengine' || tts.provider === 'ark') next.provider = tts.provider;
+        if (tts.provider === 'system' || tts.provider === 'volcengine') next.provider = tts.provider;
         if (typeof tts.systemVoiceName === 'string' || tts.systemVoiceName === null) next.systemVoiceName = tts.systemVoiceName;
         if (tts.volcengine && typeof tts.volcengine === 'object') {
           const v = tts.volcengine as Record<string, unknown>;
@@ -289,22 +292,6 @@ export class LiveDatabase {
             ...(typeof v.accessToken === 'string' ? { accessToken: v.accessToken } : {}),
             ...(typeof v.cluster === 'string' ? { cluster: v.cluster } : {}),
             ...(typeof v.voiceType === 'string' ? { voiceType: v.voiceType } : {}),
-          };
-        }
-        if (tts.ark && typeof tts.ark === 'object') {
-          const a = tts.ark as Record<string, unknown>;
-          next.ark = {
-            ...next.ark,
-            ...(typeof a.apiKey === 'string' ? { apiKey: a.apiKey } : {}),
-            ...(typeof a.model === 'string' ? { model: a.model } : {}),
-            ...(typeof a.voiceType === 'string' ? { voiceType: a.voiceType } : {}),
-          };
-        }
-        if (tts.edge && typeof tts.edge === 'object') {
-          const e = tts.edge as Record<string, unknown>;
-          next.edge = {
-            ...next.edge,
-            ...(typeof e.voiceType === 'string' ? { voiceType: e.voiceType } : {}),
           };
         }
         this.state.config.tts = next;

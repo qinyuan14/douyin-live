@@ -163,25 +163,16 @@ export const PreflightCheckSchema = z.object({
 export type PreflightCheck = z.infer<typeof PreflightCheckSchema>;
 
 export const TtsConfigSchema = z.object({
-  // 播报音色来源：system（Windows 系统语音）| edge（微软免费在线语音，无需密钥）
-  // | volcengine（火山·语音合成 AppID/Token）| ark（火山方舟 API Key）
-  provider: z.enum(['system', 'edge', 'volcengine', 'ark']),
+  // 播报音色来源（v30 起只保留火山·豆包语音；system 为无 Key 时的系统语音兜底）
+  provider: z.enum(['system', 'volcengine']),
   systemVoiceName: z.string().nullable(),
-  edge: z.object({
-    voiceType: z.string(),
-  }),
   volcengine: z.object({
-    // v26.1：新版控制台统一 API Key（X-Api-Key 单头鉴权，走豆包语音合成大模型 seed-tts-2.0）
+    // 新版控制台统一 API Key（X-Api-Key 单头鉴权，走豆包语音合成大模型，音色自动匹配 1.0/2.0）
     apiKey: z.string(),
-    // 旧版 AppID/Token 保留兼容（无 apiKey 时回退）
+    // 旧版 AppID/Token 字段保留仅作数据兼容，不再使用
     appId: z.string(),
     accessToken: z.string(),
     cluster: z.string(),
-    voiceType: z.string(),
-  }),
-  ark: z.object({
-    apiKey: z.string(),
-    model: z.string(),
     voiceType: z.string(),
   }),
 });
@@ -197,13 +188,11 @@ export const StoreConfigSchema = z.object({
   serviceAreasConfirmed: z.boolean(),
   productCategories: z.array(z.string()),
   onboardingCompleted: z.boolean(),
-  // v13.1：播报音色设置（系统语音 / 微软免费在线 / 火山引擎 / 火山方舟）
+  // v13.1：播报音色设置（v30 起只保留火山·豆包语音 + 系统语音兜底）
   tts: TtsConfigSchema.default({
     provider: 'system',
     systemVoiceName: null,
-    edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
     volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
-    ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
   }),
   // ===== 小白商用重构 v2（阶段1）=====
   // 完整初始化标记：4 步向导全部完成后置 true；老用户按兼容规则推导，不重走向导

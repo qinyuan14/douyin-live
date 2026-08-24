@@ -1239,66 +1239,136 @@ function emptyOfferForm() {
 }
 
 const DEFAULT_TTS: TtsConfig = {
-  provider: 'system',
+  provider: 'volcengine',
   systemVoiceName: null,
-  edge: { voiceType: 'zh-CN-XiaoxiaoNeural' },
   volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
-  ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
 };
 
-/** v26.1：火山·豆包语音（新版 API Key）音色下拉——moon_bigtts 走大模型1.0，uranus_bigtts 走大模型2.0（程序自动匹配） */
-const VOLC_BIG_VOICES: Array<{ value: string; label: string }> = [
-  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿（1.0·女声·推荐）' },
-  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬（1.0·男声·推荐）' },
-  { value: 'zh_female_yujie_moon_bigtts', label: '雨婕（1.0·女声）' },
-  { value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（1.0·女声）' },
-  { value: 'zh_female_cancan_uranus_bigtts', label: '知性灿灿 2.0（女声）' },
-  { value: 'zh_female_vv_uranus_bigtts', label: 'Vivi 2.0（女声）' },
-  { value: 'zh_female_shuangkuaisisi_uranus_bigtts', label: '爽快思思 2.0（女声）' },
-  { value: 'zh_male_m191_uranus_bigtts', label: '云舟 2.0（男声）' },
-  { value: 'zh_male_liufei_uranus_bigtts', label: '刘飞 2.0（男声）' },
-  { value: 'zh_female_tianmeitaozi_uranus_bigtts', label: '甜美桃子 2.0（女声）' },
+/** v30：火山·豆包语音全量音色（moon_bigtts=1.0/seed-tts-1.0，uranus_bigtts=2.0/seed-tts-2.0，程序自动匹配；ICL_*_tob 为对话音色不走普通合成） */
+const VOLC_BIG_VOICES: Array<{ group: string; value: string; label: string }> = [
+  // 1.0 常用（moon_bigtts）
+  { group: '豆包1.0·经典', value: 'zh_female_cancan_moon_bigtts', label: '灿灿（女声·推荐）' },
+  { group: '豆包1.0·经典', value: 'zh_male_yunyang_moon_bigtts', label: '云扬（男声·推荐）' },
+  { group: '豆包1.0·经典', value: 'zh_female_yujie_moon_bigtts', label: '雨婕（女声）' },
+  { group: '豆包1.0·经典', value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（女声）' },
+  { group: '豆包1.0·经典', value: 'zh_female_shuangkuaisisi_moon_bigtts', label: '爽快思思（女声）' },
+  { group: '豆包1.0·经典', value: 'zh_male_wennuan_moon_bigtts', label: '温暖（男声）' },
+  { group: '豆包1.0·角色', value: 'zh_male_aojiaobazong_moon_bigtts', label: '傲娇霸总（男声）' },
+  { group: '豆包1.0·角色', value: 'zh_female_wanwanxiaohe_moon_bigtts', label: '湾湾小何（女声·台湾腔）' },
+  // 2.0 通用（uranus_bigtts）
+  { group: '豆包2.0·通用', value: 'zh_female_xiaohe_uranus_bigtts', label: '小何 2.0（女声·推荐）' },
+  { group: '豆包2.0·通用', value: 'zh_female_vv_uranus_bigtts', label: 'Vivi 2.0（女声·推荐）' },
+  { group: '豆包2.0·通用', value: 'zh_female_shuangkuaisisi_uranus_bigtts', label: '爽快思思 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_m191_uranus_bigtts', label: '云舟 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_liufei_uranus_bigtts', label: '刘飞 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_qingxinnvsheng_uranus_bigtts', label: '清新女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_female_tianmeixiaoyuan_uranus_bigtts', label: '甜美小源 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_tianmeitaozi_uranus_bigtts', label: '甜美桃子 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_taocheng_uranus_bigtts', label: '小天 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_sophie_uranus_bigtts', label: '魅力苏菲 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_linjianvhai_uranus_bigtts', label: '邻家女孩 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_shaonianzixin_uranus_bigtts', label: '少年梓辛 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_wenroumama_uranus_bigtts', label: '温柔妈妈 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_tvbnv_uranus_bigtts', label: 'TVB女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_male_yizhipiannan_uranus_bigtts', label: '译制片男 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_female_qiaopinv_uranus_bigtts', label: '俏皮女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_male_linjiananhai_uranus_bigtts', label: '邻家男孩 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_ruyaqingnian_uranus_bigtts', label: '儒雅青年 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_wennuanahu_uranus_bigtts', label: '温暖阿虎 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_naiqimengwa_uranus_bigtts', label: '奶气萌娃 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_popo_uranus_bigtts', label: '婆婆 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_gaolengyujie_uranus_bigtts', label: '高冷御姐 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_aojiaobazong_uranus_bigtts', label: '傲娇霸总 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_fanjuanqingnian_uranus_bigtts', label: '反卷青年 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_wenroushunv_uranus_bigtts', label: '温柔淑女 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_huolixiaoge_uranus_bigtts', label: '活力小哥 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_mengyatou_uranus_bigtts', label: '萌丫头 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_tiexinnvsheng_uranus_bigtts', label: '贴心女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_female_jitangmei_uranus_bigtts', label: '鸡汤妹妹 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_cixingjieshuonan_uranus_bigtts', label: '磁性解说男声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_male_liangsangmengzai_uranus_bigtts', label: '亮嗓萌仔 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_kailangjiejie_uranus_bigtts', label: '开朗姐姐 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_gaolengchenwen_uranus_bigtts', label: '高冷沉稳 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_shenyeboke_uranus_bigtts', label: '深夜播客 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_kailangdidi_uranus_bigtts', label: '开朗弟弟 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_qinqienv_uranus_bigtts', label: '亲切女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_male_kuailexiaodong_uranus_bigtts', label: '快乐小东 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_kailangxuezhang_uranus_bigtts', label: '开朗学长 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_youyoujunzi_uranus_bigtts', label: '悠悠君子 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_wenjingmaomao_uranus_bigtts', label: '文静毛毛 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_zhixingnv_uranus_bigtts', label: '知性女声 2.0' },
+  { group: '豆包2.0·通用', value: 'zh_male_qingshuangnanda_uranus_bigtts', label: '清爽男大 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_yuanboxiaoshu_uranus_bigtts', label: '渊博小叔 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_yangguangqingnian_uranus_bigtts', label: '阳光青年 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_qingchezizi_uranus_bigtts', label: '清澈梓梓 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_tianmeiyueyue_uranus_bigtts', label: '甜美悦悦 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_wenrouxiaoge_uranus_bigtts', label: '温柔小哥 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_roumeinvyou_uranus_bigtts', label: '柔美女友 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_dongfanghaoran_uranus_bigtts', label: '东方浩然 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_wenrouxiaoya_uranus_bigtts', label: '温柔小雅 2.0（女声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_tiancaitongsheng_uranus_bigtts', label: '天才童声 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_male_guanggaojieshuo_uranus_bigtts', label: '广告解说 2.0（男声）' },
+  { group: '豆包2.0·通用', value: 'zh_female_kefunvsheng_uranus_bigtts', label: '暖阳女声 2.0（客服）' },
+  // 2.0 角色/配音/有声（uranus_bigtts）
+  { group: '豆包2.0·角色', value: 'zh_female_cancan_uranus_bigtts', label: '知性灿灿 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_sajiaoxuemei_uranus_bigtts', label: '撒娇学妹 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_zhishuaiyingzi_uranus_bigtts', label: '直率英子 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_silang_uranus_bigtts', label: '四郎 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_qingcang_uranus_bigtts', label: '擎苍 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_xionger_uranus_bigtts', label: '熊二 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_yingtaowanzi_uranus_bigtts', label: '樱桃丸子 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_gufengshaoyu_uranus_bigtts', label: '古风少御 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_lubanqihao_uranus_bigtts', label: '鲁班七号 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_linxiao_uranus_bigtts', label: '林潇 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_lingling_uranus_bigtts', label: '玲玲姐姐 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_tangseng_uranus_bigtts', label: '唐僧 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_zhuangzhou_uranus_bigtts', label: '庄周 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_male_zhubajie_uranus_bigtts', label: '猪八戒 2.0（男声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_ganmaodianyin_uranus_bigtts', label: '感冒电音姐姐 2.0' },
+  { group: '豆包2.0·角色', value: 'zh_female_nvleishen_uranus_bigtts', label: '女雷神 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_wuzetian_uranus_bigtts', label: '武则天 2.0（女声）' },
+  { group: '豆包2.0·角色', value: 'zh_female_gujie_uranus_bigtts', label: '顾姐 2.0（女声）' },
+  { group: '豆包2.0·配音', value: 'zh_female_peiqi_uranus_bigtts', label: '佩奇猪 2.0' },
+  { group: '豆包2.0·配音', value: 'zh_male_sunwukong_uranus_bigtts', label: '猴哥 2.0（男声）' },
+  { group: '豆包2.0·配音', value: 'zh_female_mizai_uranus_bigtts', label: '黑猫侦探咪仔 2.0' },
+  { group: '豆包2.0·配音', value: 'zh_female_liuchangnv_uranus_bigtts', label: '流畅女声 2.0' },
+  { group: '豆包2.0·配音', value: 'zh_male_ruyayichen_uranus_bigtts', label: '儒雅逸辰 2.0（男声）' },
+  { group: '豆包2.0·有声', value: 'zh_female_xiaoxue_uranus_bigtts', label: '儿童绘本 2.0（女声）' },
+  { group: '豆包2.0·有声', value: 'zh_male_baqiqingshu_uranus_bigtts', label: '霸气青叔 2.0（男声）' },
+  { group: '豆包2.0·有声', value: 'zh_male_xuanyijieshuo_uranus_bigtts', label: '悬疑解说 2.0（男声）' },
+  { group: '豆包2.0·有声', value: 'zh_female_shaoergushi_uranus_bigtts', label: '少儿故事 2.0（女声）' },
+  // 多语种（uranus_bigtts）
+  { group: '多语种', value: 'en_male_tim_uranus_bigtts', label: 'Tim（英语·男声）' },
+  { group: '多语种', value: 'en_female_dacey_uranus_bigtts', label: 'Dacey（英语·女声）' },
+  { group: '多语种', value: 'en_female_stokie_uranus_bigtts', label: 'Stokie（英语·女声）' },
 ];
 
-/** v21.1：微软免费在线音色（Edge TTS，零密钥）——音质自然，需联网 */
-const EDGE_VOICES: Array<{ value: string; label: string }> = [
-  { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓（女声·推荐）' },
-  { value: 'zh-CN-YunxiNeural', label: '云希（男声·推荐）' },
-  { value: 'zh-CN-YunyangNeural', label: '云扬（男声）' },
-  { value: 'zh-CN-XiaoyiNeural', label: '晓伊（女声）' },
-  { value: 'zh-CN-liaoning-XiaobeiNeural', label: '晓北（东北女声）' },
-];
-
-/** v13.1：播报音色设置——系统语音 / 微软免费在线 / 火山（抖音同款）密钥与音色 */
+/** v13.1：播报音色设置——v30 起只保留火山·豆包语音（系统语音为无 Key 时兜底） */
 function VoiceSettings({ config, onSave, onError }: {
   config: StoreConfig;
   onSave: (tts: TtsConfig) => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [tts, setTts] = useState<TtsConfig>(() => ({
     ...DEFAULT_TTS,
     ...config.tts,
-    edge: { ...DEFAULT_TTS.edge, ...config.tts?.edge },
     volcengine: { ...DEFAULT_TTS.volcengine, ...config.tts?.volcengine },
-    ark: { ...DEFAULT_TTS.ark, ...config.tts?.ark },
   }));
+  // 自定义音色代码输入（音色下拉选「自定义」时使用）
+  const [customVoice, setCustomVoice] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
-
-  useEffect(() => {
-    const load = () => setVoices(window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('zh')));
-    load();
-    window.speechSynthesis.addEventListener('voiceschanged', load);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
-  }, []);
 
   async function save() {
     setSaving(true);
     setNotice(null);
     try {
-      await onSave(tts);
+      // v30：固定使用火山·豆包语音；自定义音色代码回填到 voiceType
+      const voiceType = tts.volcengine.voiceType === '__custom__'
+        ? (customVoice.trim() || tts.volcengine.voiceType)
+        : tts.volcengine.voiceType;
+      await onSave({ ...tts, provider: 'volcengine', volcengine: { ...tts.volcengine, voiceType } });
       setNotice({ tone: 'success', text: '✓ 音色设置已保存，现在播报会使用所选音色。' });
     } catch (error) {
       setNotice({ tone: 'error', text: error instanceof Error ? error.message : '音色设置保存失败' });
@@ -1313,19 +1383,15 @@ function VoiceSettings({ config, onSave, onError }: {
     setNotice(null);
     try {
       setNotice({ tone: 'success', text: '正在合成试听…' });
-      const voiceType = tts.provider === 'volcengine'
-        ? tts.volcengine.voiceType || undefined
-        : tts.provider === 'ark'
-          ? tts.ark.voiceType || undefined
-          : tts.provider === 'edge'
-            ? tts.edge.voiceType || undefined
-            : undefined;
+      const voiceType = tts.volcengine.voiceType === '__custom__'
+        ? (customVoice.trim() || undefined)
+        : (tts.volcengine.voiceType || undefined);
       // 试听跟随界面当前选择（传 provider/apiKey 覆盖已保存配置，实现所见即所得）
       const { audioBase64 } = await api.tts({
         text: '你好，这是直播播报音色试听，请确认声音自然好听。',
         voiceType,
-        provider: tts.provider,
-        apiKey: tts.provider === 'volcengine' ? tts.volcengine.apiKey : undefined,
+        provider: 'volcengine',
+        apiKey: tts.volcengine.apiKey,
       });
       const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
       audio.onended = () => setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
@@ -1343,48 +1409,20 @@ function VoiceSettings({ config, onSave, onError }: {
 
   return (
     <section className="voice-settings">
-      <div className="panel-heading"><Volume2 aria-hidden="true" /><div><h2>播报音色</h2><p>选择 AI 播报的声音。系统语音免费随时可用；火山方舟（API Key）音质自然，填一次密钥即可。</p></div></div>
+      <div className="panel-heading"><Volume2 aria-hidden="true" /><div><h2>播报音色（火山·豆包语音）</h2><p>填一个 API Key + 选音色即可，火山全量音色可选；没填 Key 时播报自动用系统声音兜底。</p></div></div>
       <div className="voice-form">
-        <label className="wide"><span>音色来源</span><select value={tts.provider} onChange={(e) => setTts({ ...tts, provider: e.target.value as TtsConfig['provider'] })}>
-          <option value="system">系统语音（免费，随时可用）</option>
-          <option value="edge">免费在线音色（微软，音质自然，推荐）</option>
-          <option value="ark">火山方舟（API Key，需配置）</option>
-          <option value="volcengine">火山·豆包语音（API Key，推荐）</option>
-        </select></label>
-        {tts.provider === 'system' ? (
-          <label className="wide"><span>系统中文语音</span><select value={tts.systemVoiceName ?? ''} onChange={(e) => setTts({ ...tts, systemVoiceName: e.target.value || null })}>
-            <option value="">自动挑选（系统默认）</option>
-            {voices.map((voice) => <option key={voice.name} value={voice.name}>{voice.name}</option>)}
-          </select><small>这里列的是你电脑里已安装的中文语音；装更多语音后重新打开此页即可看到。</small></label>
-        ) : tts.provider === 'edge' ? (
-          <label className="wide"><span>在线音色（无需任何配置，联网即可用）</span><select value={tts.edge.voiceType} onChange={(e) => setTts({ ...tts, edge: { ...tts.edge, voiceType: e.target.value } })}>
-            {EDGE_VOICES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select><small>微软免费在线语音，音质自然；直播播报时需要联网。选好直接点「试听音色」。</small></label>
-        ) : tts.provider === 'ark' ? (
-          <>
-            <label className="wide"><span>API Key（火山方舟，sk- 开头）</span><input value={tts.ark.apiKey} onChange={(e) => setTts({ ...tts, ark: { ...tts.ark, apiKey: e.target.value } })} placeholder="方舟控制台 → API Key 管理 → 创建新 Key；只保存在本机" /></label>
-            <label className="wide"><span>模型 / 推理接入点 ID</span><input value={tts.ark.model} onChange={(e) => setTts({ ...tts, ark: { ...tts.ark, model: e.target.value } })} placeholder="方舟控制台 → 在线推理 → 创建推理接入点 → 选择语音合成模型 → 复制接入点 ID（如 ep-xxx）" /><small>必须先在方舟控制台「在线推理」创建接入点并选语音合成模型，把生成的接入点 ID 填这里。</small></label>
-            <label className="wide"><span>音色（直接选）</span><select value={tts.ark.voiceType} onChange={(e) => setTts({ ...tts, ark: { ...tts.ark, voiceType: e.target.value } })}>
-              <option value="zh_female_cancan_moon_bigtts">灿灿（女声·推荐）</option>
-              <option value="zh_male_yunyang_moon_bigtts">云扬（男声·推荐）</option>
-              <option value="zh_female_yujie_moon_bigtts">雨婕（女声）</option>
-              <option value="zh_female_qingqiu_moon_bigtts">青秋（女声）</option>
-            </select><small>更多音色代码见方舟语音合成模型文档；选好后点「试听音色」验证。</small></label>
-          </>
-        ) : (
-          <>
-            <label className="wide"><span>API Key（火山新版控制台，必填）</span><input value={tts.volcengine.apiKey} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, apiKey: e.target.value } })} placeholder="登录 console.volcengine.com → 火山方舟 → 左侧「API Key 管理」→ 创建并复制（sk- 开头）；只保存在本机" /><small>豆包语音合成大模型鉴权（X-Api-Key）：填这一个 Key 就够了，不需要 AppID/Token/接入点。</small></label>
-            <label className="wide"><span>音色（直接选）</span><select value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })}>
-              {VOLC_BIG_VOICES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select><small>选好后点「试听音色」验证；若提示未开通，请到火山控制台「开通管理」开通「语音合成大模型」服务。</small></label>
-            <details className="wide volc-legacy"><summary>旧版 AppID/Token 配置（一般不用填）</summary>
-              <label className="wide"><span>AppID（旧版语音合成）</span><input value={tts.volcengine.appId} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, appId: e.target.value } })} placeholder="旧版控制台：语音技术 → 语音合成" /></label>
-              <label className="wide"><span>访问令牌 Access Token（旧版）</span><input value={tts.volcengine.accessToken} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, accessToken: e.target.value } })} placeholder="与 AppID 配套" /></label>
-              <label className="wide"><span>Cluster（留空自动）</span><input value={tts.volcengine.cluster} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, cluster: e.target.value } })} placeholder="经典→volcano_tts，大模型→volcano_mega" /></label>
-            </details>
-          </>
-        )}
-        {(tts.provider === 'volcengine' || tts.provider === 'ark' || tts.provider === 'edge') && <button className="secondary-action wide" type="button" disabled={testing || (tts.provider === 'volcengine' ? !tts.volcengine.apiKey && !tts.volcengine.accessToken : tts.provider === 'ark' ? !tts.ark.apiKey || !tts.ark.model : false)} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>}
+        <label className="wide"><span>API Key（火山控制台「API 管理」复制，必填）</span><input value={tts.volcengine.apiKey} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, apiKey: e.target.value } })} placeholder="登录 console.volcengine.com/speech → 语音技术控制台「API 管理」→ 创建并复制（sk- 开头）；只保存在本机" /><small>豆包语音合成大模型鉴权（X-Api-Key）：填这一个 Key 就够了，不需要 AppID/Token/接入点。</small></label>
+        <label className="wide"><span>音色（火山全量，按场景分组）</span><select value={tts.volcengine.voiceType} onChange={(e) => setTts({ ...tts, volcengine: { ...tts.volcengine, voiceType: e.target.value } })}>
+          {Array.from(new Set(VOLC_BIG_VOICES.map((item) => item.group))).map((group) => (
+            <optgroup key={group} label={group}>
+              {VOLC_BIG_VOICES.filter((item) => item.group === group).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </optgroup>
+          ))}
+          <option value="__custom__">… 自定义音色代码（下方输入）</option>
+        </select>
+        {tts.volcengine.voiceType === '__custom__' && <input className="wide" value={customVoice} onChange={(e) => setCustomVoice(e.target.value)} placeholder="填入官方音色代码，如 zh_female_vv_uranus_bigtts；选好点「试听音色」" />}
+        <small>1.0 音色（灿灿/云扬等）与大模型 2.0 音色（Vivi/小何等）程序会自动匹配版本；想用列表外音色选「自定义」填入代码即可。</small></label>
+        <button className="secondary-action wide" type="button" disabled={testing || (!tts.volcengine.apiKey && !tts.volcengine.accessToken)} onClick={() => void testVoice()}>{testing ? <LoaderCircle className="spin" /> : <Volume2 />}试听音色</button>
         {notice && <p className={`voice-test-result ${notice.tone}`}>{notice.text}</p>}
         <div className="form-actions wide"><button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" /> : <Check />}保存音色设置</button></div>
       </div>
