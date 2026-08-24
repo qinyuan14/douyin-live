@@ -1241,7 +1241,7 @@ function emptyOfferForm() {
 const DEFAULT_TTS: TtsConfig = {
   provider: 'volcengine',
   systemVoiceName: null,
-  volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
+  volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_uranus_bigtts' },
 };
 
 /** v30：火山·豆包语音全量音色（moon_bigtts=1.0/seed-tts-1.0，uranus_bigtts=2.0/seed-tts-2.0，程序自动匹配；ICL_*_tob 为对话音色不走普通合成） */
@@ -1252,12 +1252,7 @@ const VOLC_BIG_VOICES: Array<{ group: string; value: string; label: string }> = 
   { group: '豆包2.0·推荐', value: 'zh_female_vv_uranus_bigtts', label: 'Vivi 2.0（女声·推荐）' },
   { group: '豆包2.0·推荐', value: 'zh_male_m191_uranus_bigtts', label: '云舟 2.0（男声·推荐）' },
   { group: '豆包2.0·推荐', value: 'zh_female_shuangkuaisisi_uranus_bigtts', label: '爽快思思 2.0（女声）' },
-  // 1.0 旧版体系（moon_bigtts）——新版 API Key 无法调用，仅保留展示
-  { group: '1.0 旧版音色（需旧版凭证，暂不可用）', value: 'zh_female_cancan_moon_bigtts', label: '灿灿（旧版体系）' },
-  { group: '1.0 旧版音色（需旧版凭证，暂不可用）', value: 'zh_male_yunyang_moon_bigtts', label: '云扬（旧版体系）' },
-  { group: '1.0 旧版音色（需旧版凭证，暂不可用）', value: 'zh_female_yujie_moon_bigtts', label: '雨婕（旧版体系）' },
-  { group: '1.0 旧版音色（需旧版凭证，暂不可用）', value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（旧版体系）' },
-  // 2.0 通用（uranus_bigtts）
+  // 2.0 通用（uranus_bigtts）（1.0 旧版 moon_bigtts 音色新版 Key 无法调用，已从列表移除）
   { group: '豆包2.0·通用', value: 'zh_male_liufei_uranus_bigtts', label: '刘飞 2.0（男声）' },
   { group: '豆包2.0·通用', value: 'zh_female_qingxinnvsheng_uranus_bigtts', label: '清新女声 2.0' },
   { group: '豆包2.0·通用', value: 'zh_female_tianmeixiaoyuan_uranus_bigtts', label: '甜美小源 2.0（女声）' },

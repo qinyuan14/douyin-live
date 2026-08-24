@@ -34,7 +34,7 @@ import { buildRunSheet } from './run-sheet.js';
 
 /** v16.1：经典音色 → 豆包大模型音色 映射（经典接口遇授权类错误时自动换大模型接口重试） */
 const MEGA_VOICE_FALLBACK: Record<string, string> = {
-  BV700_streaming: 'zh_female_cancan_moon_bigtts',
+  BV700_streaming: 'zh_female_cancan_uranus_bigtts',
   BV701_streaming: 'zh_male_yunyang_moon_bigtts',
 };
 
@@ -207,7 +207,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     if (effectiveProvider !== 'volcengine' || (!apiKey && !v?.accessToken?.trim())) {
       throw new Error('尚未开启火山·豆包语音：请在「播报音色」中填写火山 API Key（新版控制台「API 管理」复制），并选一个音色');
     }
-    const voiceType = (parsed.voiceType || v.voiceType || 'zh_female_cancan_moon_bigtts').trim();
+    const voiceType = (parsed.voiceType || v.voiceType || 'zh_female_cancan_uranus_bigtts').trim();
     // v26.1：新版控制台统一 API Key → 豆包语音合成大模型（X-Api-Key 单头鉴权，音色自动匹配 1.0/2.0）
     // 无需 AppID/Token/Cluster/推理接入点——官方文档 volcengine.com/docs/6269/1598757
     if (apiKey) {
@@ -416,7 +416,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       return '「访问令牌无效」——请回火山控制台核对：① 进入 语音技术→语音合成→应用管理，复制「同一个应用」的 AppID 和 Access Token（完整复制，别带空格/漏字符）；② 确认该应用已开通语音合成服务；③ 若重置过令牌请用最新那个。';
     }
     if (/4040|voice.*not.*found|音色.*不存在|voice type/.test(raw)) {
-      return '「音色代码不存在」——请在下拉里换个音色，或确认手动输入的代码正确（经典如 BV700_streaming；豆包大模型如 zh_female_cancan_moon_bigtts）。';
+      return '「音色代码不存在」——请在下拉里换个音色，或确认手动输入的代码正确（经典如 BV700_streaming；豆包大模型如 zh_female_cancan_uranus_bigtts）。';
     }
     if (/4004|app.*not.*found|应用.*不存在/.test(raw)) {
       return '「AppID 无效」——请核对控制台里的 AppID 是否完整复制。';

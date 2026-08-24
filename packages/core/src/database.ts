@@ -64,7 +64,7 @@ const DEFAULT_CONFIG: StoreConfig = {
   tts: {
     provider: 'system',
     systemVoiceName: null,
-    volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_moon_bigtts' },
+    volcengine: { apiKey: '', appId: '', accessToken: '', cluster: 'volcano_tts', voiceType: 'zh_female_cancan_uranus_bigtts' },
   },
   // 小白商用重构 v2（阶段1）：完整初始化标记与监护落盘
   setupCompleted: false,
