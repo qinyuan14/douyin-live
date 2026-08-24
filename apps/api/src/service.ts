@@ -197,6 +197,8 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       voiceType: z.string().optional(),
       // 试听时前端传当前界面选择的来源（覆盖已保存配置），实现"所见即所得"；播报不传，用已保存配置
       provider: z.enum(['system', 'edge', 'volcengine', 'ark']).optional(),
+      // 试听时前端传火山 API Key（覆盖已保存，避免"界面填了 Key 却没保存就走旧接口"）
+      apiKey: z.string().optional(),
     }).parse(input);
     const config = await this.database.getStoreConfig();
     const ttsConfig = config.tts;
@@ -217,14 +219,15 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       return this.arkTtsRequest(a.apiKey.trim(), model, voiceType, parsed.text);
     }
     const v = ttsConfig?.volcengine;
-    if (effectiveProvider !== 'volcengine' || (!v?.apiKey?.trim() && !v?.accessToken?.trim())) {
-      throw new Error('尚未开启火山引擎语音：请在「语音设置」中填写火山 API Key（新版控制台「API Key 管理」复制），并切换音色来源');
+    const apiKey = (parsed.apiKey?.trim() || v?.apiKey?.trim() || '').trim();
+    if (effectiveProvider !== 'volcengine' || (!apiKey && !v?.accessToken?.trim())) {
+      throw new Error('尚未开启火山引擎语音：请在「语音设置」中填写火山 API Key（新版控制台「API 管理」复制），并切换音色来源');
     }
     const voiceType = (parsed.voiceType || v.voiceType || 'zh_female_cancan_moon_bigtts').trim();
     // v26.1：新版控制台统一 API Key → 豆包语音合成大模型（seed-tts-2.0，X-Api-Key 单头鉴权）
     // 无需 AppID/Token/Cluster/推理接入点——官方文档 volcengine.com/docs/6269/1598757
-    if (v.apiKey?.trim()) {
-      return this.volcBigTtsRequest(v.apiKey.trim(), voiceType, parsed.text);
+    if (apiKey) {
+      return this.volcBigTtsRequest(apiKey, voiceType, parsed.text);
     }
     const appId = v.appId.trim();
     const accessToken = v.accessToken.trim();
