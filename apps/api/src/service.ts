@@ -252,13 +252,29 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * 官方文档：volcengine.com/docs/6269/1598757
    */
   private async volcBigTtsRequest(apiKey: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
-    // 音色与模型版本对应（官方：moon_bigtts→大模型1.0/seed-tts-1.0；uranus_bigtts→大模型2.0/seed-tts-2.0）
-    // 写错版本会报 55000000 resource ID is mismatched with speaker related resource
-    const versionLabel = voiceType.includes('uranus') ? '2.0' : '1.0';
     if (voiceType.startsWith('ICL_')) {
-      throw new Error('这个音色是「对话式音色」（ICL 开头），不支持普通播报合成。请换用普通音色：灿灿（1.0·女声）、云扬（1.0·男声）、Vivi 2.0、小何 2.0 等。');
+      throw new Error('这个音色是「对话式音色」（ICL 开头），不支持普通播报合成。请换用普通音色：灿灿、云扬、Vivi 2.0、小何 2.0 等。');
     }
-    const resourceId = voiceType.includes('uranus') ? 'seed-tts-2.0' : 'seed-tts-1.0';
+    // 音色与版本不匹配（55000000）时自动换另一个版本重试，不再靠猜
+    const candidates = voiceType.includes('uranus') ? ['seed-tts-2.0', 'seed-tts-1.0'] : ['seed-tts-1.0', 'seed-tts-2.0'];
+    let lastError = '';
+    for (let attempt = 0; attempt < candidates.length; attempt += 1) {
+      try {
+        return await this.volcBigTtsAttempt(apiKey, voiceType, text, candidates[attempt]!);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes('55000000') || msg.includes('资源不匹配')) {
+          lastError = msg;
+          continue; // 换版本重试
+        }
+        throw error;
+      }
+    }
+    throw new Error(`${lastError || '豆包语音合成失败'}（已自动尝试 1.0/2.0 两个版本，均不匹配）。若均已开通仍报错，请把此提示发给技术处理`);
+  }
+
+  /** 单次豆包语音大模型合成（X-Api-Key 鉴权，HTTP Chunked 流式） */
+  private async volcBigTtsAttempt(apiKey: string, voiceType: string, text: string, resourceId: string): Promise<{ audioBase64: string; format: string }> {
     const response = await fetch('https://openspeech.bytedance.com/api/v3/tts/unidirectional', {
       method: 'POST',
       headers: {
@@ -302,7 +318,7 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
       let escaped = false;
       let end = -1;
       for (let i = 0; i < rest.length; i += 1) {
-        const ch = rest[i]!;
+        const ch = rest[i];
         if (inString) {
           if (escaped) escaped = false;
           else if (ch === '\\') escaped = true;
@@ -325,13 +341,13 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
           audioParts.push(parsed.data);
         } else if (parsed.code !== 0 && parsed.code !== 20000000) {
           if (parsed.code === 55000000) {
-            throw new Error(`音色与模型版本不匹配（code=55000000）：音色「${voiceType}」属于语音合成大模型 ${versionLabel}。请到火山控制台「开通管理」确认已开通「语音合成大模型${versionLabel}」服务；或先改用「灿灿（1.0）」「云扬（1.0）」这类 1.0 音色试听（免费额度即可用，无需充值）。`);
+            throw new Error(`音色与模型版本不匹配（code=55000000）：音色「${voiceType}」不属于资源 ${resourceId}`);
           }
           throw new Error(`豆包语音合成失败（code=${parsed.code ?? '?'}）：${parsed.message || '未知错误'}。若提示未开通/未授权，请到火山控制台「开通管理」开通「语音合成大模型」服务`);
         }
       } catch (error) {
         if (error instanceof Error && error.message.startsWith('豆包语音合成失败')) throw error;
-        if (error instanceof Error && error.message.startsWith('音色与模型版本不匹配')) throw error;
+        if (error instanceof Error && error.message.includes('55000000')) throw error;
         // 非完整 JSON 片段，忽略继续
       }
     }
