@@ -254,6 +254,10 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
   private async volcBigTtsRequest(apiKey: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
     // 音色与模型版本对应（官方：moon_bigtts→大模型1.0/seed-tts-1.0；uranus_bigtts→大模型2.0/seed-tts-2.0）
     // 写错版本会报 55000000 resource ID is mismatched with speaker related resource
+    const versionLabel = voiceType.includes('uranus') ? '2.0' : '1.0';
+    if (voiceType.startsWith('ICL_')) {
+      throw new Error('这个音色是「对话式音色」（ICL 开头），不支持普通播报合成。请换用普通音色：灿灿（1.0·女声）、云扬（1.0·男声）、Vivi 2.0、小何 2.0 等。');
+    }
     const resourceId = voiceType.includes('uranus') ? 'seed-tts-2.0' : 'seed-tts-1.0';
     const response = await fetch('https://openspeech.bytedance.com/api/v3/tts/unidirectional', {
       method: 'POST',
@@ -320,10 +324,14 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
         if (parsed.code === 0 && typeof parsed.data === 'string' && parsed.data.length > 0) {
           audioParts.push(parsed.data);
         } else if (parsed.code !== 0 && parsed.code !== 20000000) {
+          if (parsed.code === 55000000) {
+            throw new Error(`音色与模型版本不匹配（code=55000000）：音色「${voiceType}」属于语音合成大模型 ${versionLabel}。请到火山控制台「开通管理」确认已开通「语音合成大模型${versionLabel}」服务；或先改用「灿灿（1.0）」「云扬（1.0）」这类 1.0 音色试听（免费额度即可用，无需充值）。`);
+          }
           throw new Error(`豆包语音合成失败（code=${parsed.code ?? '?'}）：${parsed.message || '未知错误'}。若提示未开通/未授权，请到火山控制台「开通管理」开通「语音合成大模型」服务`);
         }
       } catch (error) {
         if (error instanceof Error && error.message.startsWith('豆包语音合成失败')) throw error;
+        if (error instanceof Error && error.message.startsWith('音色与模型版本不匹配')) throw error;
         // 非完整 JSON 片段，忽略继续
       }
     }
