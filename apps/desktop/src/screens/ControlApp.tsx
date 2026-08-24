@@ -1393,9 +1393,21 @@ function VoiceSettings({ config, onSave, onError }: {
         provider: 'volcengine',
         apiKey: tts.volcengine.apiKey,
       });
-      const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
-      audio.onended = () => setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
-      audio.onerror = () => setNotice({ tone: 'error', text: '试听音频无法播放（格式异常）。请换一个音色重试；若持续出现，请把提示发给技术处理。' });
+      // 用 blob URL 播放（兼容性最好，避免 data URL 播 OGG/大音频失败）
+      const mime = format === 'ogg' ? 'audio/ogg' : format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+      const binary = atob(audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      const audio = new Audio(url);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        setNotice({ tone: 'error', text: `音频无法播放（格式 ${format ?? 'mp3'}，${bytes.length} 字节）。请把此提示原样发给技术处理。` });
+      };
       await audio.play();
       setNotice({ tone: 'success', text: '正在播放试听，请留意声音…' });
     } catch (error) {

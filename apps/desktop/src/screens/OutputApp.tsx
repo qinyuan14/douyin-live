@@ -13,6 +13,15 @@ function chooseChineseVoice(): SpeechSynthesisVoice | null {
     ?? null;
 }
 
+/** 把 base64 音频转成 blob URL 播放（兼容性最好，避免 data URL 播 OGG/大音频失败） */
+function blobAudioUrl(audioBase64: string, format?: string): { url: string; bytes: Uint8Array } {
+  const mime = format === 'ogg' ? 'audio/ogg' : format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+  const binary = atob(audioBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return { url: URL.createObjectURL(new Blob([bytes], { type: mime })), bytes };
+}
+
 /** v13.1：按设置选择系统语音（设置了指定音色优先，否则自动挑一个中文语音） */
 function pickSystemVoice(tts: TtsConfig | null): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
@@ -131,14 +140,19 @@ export function OutputApp() {
         return;
       }
       if (volcReady) {
-        // v13.1：火山引擎（抖音同款音色）——内置 API 代理合成 mp3 播放
+        // v13.1：火山引擎（抖音同款音色）——内置 API 代理合成播放（blob URL，兼容 mp3/ogg/wav）
         void api.tts({ text: chunk }).then(({ audioBase64, format }) => {
           if (sequence !== speechSequenceRef.current) return;
-          const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
+          const { url, bytes } = blobAudioUrl(audioBase64, format);
+          const audio = new Audio(url);
           audioRef.current = audio;
-          audio.onended = () => speakNext(index + 1);
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            speakNext(index + 1);
+          };
           audio.onerror = () => {
-            stopSpeech('云端语音播放异常，请员工使用真人声音接管');
+            URL.revokeObjectURL(url);
+            stopSpeech(`云端语音播放异常（格式 ${format ?? 'mp3'}，${bytes.length} 字节），请员工使用真人声音接管`);
             void api.updateHardware({ voiceReady: false }).catch(() => {
               connectedRef.current = false;
               setServiceConnected(false);
@@ -200,12 +214,15 @@ export function OutputApp() {
         if (volcReady) {
           void api.tts({ text: testText, voiceType: t?.volcengine.voiceType || undefined })
             .then(({ audioBase64, format }) => {
-              const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
+              const { url } = blobAudioUrl(audioBase64, format);
+              const audio = new Audio(url);
               audio.onended = () => {
+                URL.revokeObjectURL(url);
                 const label = `火山·${t?.volcengine.voiceType ?? ''}`;
                 channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: label });
               };
               audio.onerror = () => {
+                URL.revokeObjectURL(url);
                 channel.postMessage({ type: 'voice-test-result', id: message.id, generated: false, voiceName: null });
                 void api.updateHardware({ voiceReady: false });
               };
