@@ -330,7 +330,20 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
     if (audioParts.length === 0) {
       throw new Error('豆包语音合成没有返回音频：请核对 API Key 是否正确、音色是否存在；若提示未开通，请到火山控制台「开通管理」开通「语音合成大模型」服务');
     }
-    return { audioBase64: audioParts.join(''), format: 'mp3' };
+    // 校验并探测拼接后的音频真实格式（火山个别情况下可能返回 ogg_opus 而非 mp3，自适应避免"无法播放"）
+    const audioBuf = Buffer.from(audioParts.join(''), 'base64');
+    const isMp3 = (audioBuf.length > 3 && audioBuf[0] === 0x49 && audioBuf[1] === 0x44 && audioBuf[2] === 0x33)
+      || (audioBuf.length > 1 && audioBuf[0] === 0xff && (audioBuf[1]! & 0xe0) === 0xe0);
+    const isOgg = audioBuf.length > 4 && audioBuf[0] === 0x4f && audioBuf[1] === 0x67 && audioBuf[2] === 0x67 && audioBuf[3] === 0x53; // OggS
+    const isWav = audioBuf.length > 4 && audioBuf[0] === 0x52 && audioBuf[1] === 0x49 && audioBuf[2] === 0x46 && audioBuf[3] === 0x46; // RIFF
+    let format = 'mp3';
+    if (isMp3) format = 'mp3';
+    else if (isOgg) format = 'ogg';
+    else if (isWav) format = 'wav';
+    else {
+      throw new Error(`试听音频格式异常（前 8 字节：${audioBuf.subarray(0, 8).toString('hex')}，共 ${audioBuf.length} 字节）。火山返回的不是可播放音频，请换一个音色重试，或把此提示发给技术处理`);
+    }
+    return { audioBase64: audioBuf.toString('base64'), format };
   }
 
   /** 单次火山 TTS 请求：按 cluster 自动选 v1 经典或 v3 豆包大模型接口 */

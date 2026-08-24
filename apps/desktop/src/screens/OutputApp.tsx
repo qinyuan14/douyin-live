@@ -132,9 +132,9 @@ export function OutputApp() {
       }
       if (volcReady) {
         // v13.1：火山引擎（抖音同款音色）——内置 API 代理合成 mp3 播放
-        void api.tts({ text: chunk }).then(({ audioBase64 }) => {
+        void api.tts({ text: chunk }).then(({ audioBase64, format }) => {
           if (sequence !== speechSequenceRef.current) return;
-          const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+          const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
           audioRef.current = audio;
           audio.onended = () => speakNext(index + 1);
           audio.onerror = () => {
@@ -199,8 +199,8 @@ export function OutputApp() {
         const testText = '实景直播中文语音试听。请员工确认已经听见，而且声音进入了正确的直播输出线路。';
         if (volcReady) {
           void api.tts({ text: testText, voiceType: t?.volcengine.voiceType || undefined })
-            .then(({ audioBase64 }) => {
-              const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+            .then(({ audioBase64, format }) => {
+              const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
               audio.onended = () => {
                 const label = `火山·${t?.volcengine.voiceType ?? ''}`;
                 channel.postMessage({ type: 'voice-test-result', id: message.id, generated: true, voiceName: label });

@@ -1387,15 +1387,15 @@ function VoiceSettings({ config, onSave, onError }: {
         ? (customVoice.trim() || undefined)
         : (tts.volcengine.voiceType || undefined);
       // 试听跟随界面当前选择（传 provider/apiKey 覆盖已保存配置，实现所见即所得）
-      const { audioBase64 } = await api.tts({
+      const { audioBase64, format } = await api.tts({
         text: '你好，这是直播播报音色试听，请确认声音自然好听。',
         voiceType,
         provider: 'volcengine',
         apiKey: tts.volcengine.apiKey,
       });
-      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      const audio = new Audio(`data:audio/${format ?? 'mp3'};base64,${audioBase64}`);
       audio.onended = () => setNotice({ tone: 'success', text: '✓ 试听播放完毕；保存后直播播报即用此音色。' });
-      audio.onerror = () => setNotice({ tone: 'error', text: '试听音频播放失败，请检查声卡输出或重试。' });
+      audio.onerror = () => setNotice({ tone: 'error', text: '试听音频无法播放（格式异常）。请换一个音色重试；若持续出现，请把提示发给技术处理。' });
       await audio.play();
       setNotice({ tone: 'success', text: '正在播放试听，请留意声音…' });
     } catch (error) {
