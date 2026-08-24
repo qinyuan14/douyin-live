@@ -268,12 +268,15 @@ export class LiveService implements OnModuleInit, OnModuleDestroy {
    * 官方文档：volcengine.com/docs/6269/1598757
    */
   private async volcBigTtsRequest(apiKey: string, voiceType: string, text: string): Promise<{ audioBase64: string; format: string }> {
+    // 音色与模型版本对应（官方：moon_bigtts→大模型1.0/seed-tts-1.0；uranus_bigtts→大模型2.0/seed-tts-2.0）
+    // 写错版本会报 55000000 resource ID is mismatched with speaker related resource
+    const resourceId = voiceType.includes('uranus') ? 'seed-tts-2.0' : 'seed-tts-1.0';
     const response = await fetch('https://openspeech.bytedance.com/api/v3/tts/unidirectional', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Api-Key': apiKey,
-        'X-Api-Resource-Id': 'seed-tts-2.0',
+        'X-Api-Resource-Id': resourceId,
         'X-Api-Request-Id': crypto.randomUUID(),
       },
       body: JSON.stringify({

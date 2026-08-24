@@ -1246,15 +1246,18 @@ const DEFAULT_TTS: TtsConfig = {
   ark: { apiKey: '', model: '', voiceType: 'zh_female_cancan_moon_bigtts' },
 };
 
-/** v26.1：火山·豆包语音（新版 API Key）音色下拉 */
+/** v26.1：火山·豆包语音（新版 API Key）音色下拉——moon_bigtts 走大模型1.0，uranus_bigtts 走大模型2.0（程序自动匹配） */
 const VOLC_BIG_VOICES: Array<{ value: string; label: string }> = [
-  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿（女声·推荐）' },
-  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬（男声·推荐）' },
-  { value: 'zh_female_yujie_moon_bigtts', label: '雨婕（女声）' },
-  { value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（女声）' },
-  { value: 'zh_female_shuangkuaisisi_moon_bigtts', label: '爽快思思（女声）' },
-  { value: 'zh_male_wennuan_moon_bigtts', label: '温暖（男声）' },
-  { value: 'zh_male_ahu_conversation_wvae_bigtts', label: '阿虎（男声·对话）' },
+  { value: 'zh_female_cancan_moon_bigtts', label: '灿灿（1.0·女声·推荐）' },
+  { value: 'zh_male_yunyang_moon_bigtts', label: '云扬（1.0·男声·推荐）' },
+  { value: 'zh_female_yujie_moon_bigtts', label: '雨婕（1.0·女声）' },
+  { value: 'zh_female_qingqiu_moon_bigtts', label: '青秋（1.0·女声）' },
+  { value: 'zh_female_cancan_uranus_bigtts', label: '知性灿灿 2.0（女声）' },
+  { value: 'zh_female_vv_uranus_bigtts', label: 'Vivi 2.0（女声）' },
+  { value: 'zh_female_shuangkuaisisi_uranus_bigtts', label: '爽快思思 2.0（女声）' },
+  { value: 'zh_male_m191_uranus_bigtts', label: '云舟 2.0（男声）' },
+  { value: 'zh_male_liufei_uranus_bigtts', label: '刘飞 2.0（男声）' },
+  { value: 'zh_female_tianmeitaozi_uranus_bigtts', label: '甜美桃子 2.0（女声）' },
 ];
 
 /** v21.1：微软免费在线音色（Edge TTS，零密钥）——音质自然，需联网 */
