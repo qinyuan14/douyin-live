@@ -1,0 +1,16 @@
+{
+  "control": {
+    "width": 1484,
+    "height": 941
+  },
+  "preview": {
+    "width": 540,
+    "height": 960
+  },
+  "output": {
+    "width": 1080,
+    "height": 1392
+  },
+  "displayScaleFactor": 1,
+  "renderStrategy": "屏幕内保持精确9:16预览，直播伴侣画布设置1080×1920；验收图按同一比例归一化"
+}

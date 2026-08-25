@@ -1,0 +1,12 @@
+{
+  "control": {
+    "width": 2344,
+    "height": 1402
+  },
+  "output": {
+    "width": 1078,
+    "height": 1396
+  },
+  "displayScaleFactor": 2,
+  "renderStrategy": "540x960 CSS画布，2倍设备像素输出"
+}

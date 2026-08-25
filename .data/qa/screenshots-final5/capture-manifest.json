@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-08-13T21:41:57.295Z",
+  "preview": {
+    "width": 540,
+    "height": 960,
+    "aspectRatio": 0.5625
+  },
+  "normalizedOutput": {
+    "width": 1080,
+    "height": 1920,
+    "aspectRatio": 0.5625
+  },
+  "required": {
+    "width": 1080,
+    "height": 1920,
+    "aspectRatio": 0.5625
+  },
+  "exactArtifactMatch": true,
+  "nativeWindowExactMatch": false,
+  "limitation": "当前Windows工作区将隐藏窗口高度限制为960；直播伴侣原生采集仍需单独验证"
+}

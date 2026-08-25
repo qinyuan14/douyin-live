@@ -1,0 +1,20 @@
+{
+  "control": {
+    "width": 1484,
+    "height": 941
+  },
+  "preview": {
+    "width": 540,
+    "height": 960
+  },
+  "hiddenCapture": {
+    "width": 1080,
+    "height": 1392
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920
+  },
+  "displayScaleFactor": 1,
+  "renderStrategy": "屏幕内保持精确9:16预览；验收图归一化为1080×1920；直播伴侣必须以1080×1920画布采集"
+}

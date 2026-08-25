@@ -1,9 +1,9 @@
-# Dependencies
+# Dependencies（平台相关，pnpm install 可再生，且含 >100MB 二进制无法进 Git）
 node_modules/
 .pnp
 .pnp.js
 
-# Build outputs
+# 构建产物与打包运行时（pnpm build 可再生）
 dist/
 dist-*/
 build/
@@ -13,15 +13,17 @@ out/
 .turbo/
 coverage/
 
-# Release backups (大体积发布备份，不纳入版本控制)
-release/
+# 超限安装产物（>100MB，超出 GitHub 限制，他人安装安装包后自动生成）
+release/win-unpacked/
+
+# 历史发布备份（41 个目录，纯历史快照，无共享价值）
 release-bak-*/
 backups/
 
-# Source maps (体积大，排除)
+# Source maps（体积大，可再生产物）
 *.map
 
-# Sensitive / secrets
+# 敏感文件（禁止上传）
 *.pem
 *.key
 *.p12
@@ -31,15 +33,16 @@ backups/
 !.env.example
 secrets/
 credentials.json
+runtime-token
 
-# Logs
+# 日志
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Editor / OS
+# 编辑器 / 系统
 .DS_Store
 Thumbs.db
 .idea/
@@ -50,17 +53,9 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Cache
+# 缓存
 .cache/
 .temp/
 
-# Runtime / local data (数据库、运行凭证、测试截图等)
-.data/
-.build-test/
-runtime-token
-
 # CodeBuddy
 .codebuddy/
-
-# Misc
-.cert/
